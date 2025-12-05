@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { usePlayer } from '../context/PlayerContext';
 import { searchTracks, getCategories } from '../services/spotifyService';
 import { Track } from '../types';
@@ -15,14 +16,20 @@ export const Search = () => {
     const [categories, setCategories] = useState<{id: string, name: string, icon: string}[]>([]);
     const [loading, setLoading] = useState(false);
     const [debouncedQuery, setDebouncedQuery] = useState('');
-    const { playTrack, currentTrack, isPlaying, togglePlay } = usePlayer();
+    
+    // Suggestions state
+    const [suggestions, setSuggestions] = useState<Track[]>([]);
+    const [showSuggestions, setShowSuggestions] = useState(false);
+    
+    const { playTrack, currentTrack, isPlaying } = usePlayer();
+    const navigate = useNavigate();
 
     // Fetch categories on mount
     useEffect(() => {
         getCategories().then(setCategories);
     }, []);
 
-    // Simple debounce
+    // Main Search Debounce
     useEffect(() => {
         const timer = setTimeout(() => {
             setDebouncedQuery(query);
@@ -30,6 +37,7 @@ export const Search = () => {
         return () => clearTimeout(timer);
     }, [query]);
 
+    // Fetch Main Results
     useEffect(() => {
         if (!debouncedQuery) {
             setResults([]);
@@ -45,6 +53,29 @@ export const Search = () => {
         fetchData();
     }, [debouncedQuery]);
 
+    // Fetch Suggestions (Dynamic, faster debounce)
+    useEffect(() => {
+        if (!query.trim()) {
+            setSuggestions([]);
+            return;
+        }
+
+        let active = true;
+        const fetchSuggestions = async () => {
+            const tracks = await searchTracks(query);
+            if (active) {
+                setSuggestions(tracks.slice(0, 5));
+            }
+        };
+
+        const timer = setTimeout(fetchSuggestions, 200);
+
+        return () => {
+            clearTimeout(timer);
+            active = false;
+        };
+    }, [query]);
+
     // Browse all categories colors
     const categoryColors = [
         'bg-[#E8115B]', 'bg-[#148A08]', 'bg-[#1E3264]', 'bg-[#8D67AB]',
@@ -57,17 +88,24 @@ export const Search = () => {
         playTrack(track);
     }
 
+    const handleSuggestionClick = (track: Track) => {
+        setQuery(`${track.title} ${track.artist}`);
+        setShowSuggestions(false);
+    };
+
     const topResult = results[0];
 
     return (
         <div className="p-6 pt-20">
-            <div className="mb-6 relative max-w-[400px]">
+            <div className="mb-6 relative max-w-[400px] z-50">
                 <input 
                     type="text" 
                     placeholder="What do you want to listen to?" 
                     className="w-full rounded-full py-3 px-12 bg-[#242424] text-white border border-transparent focus:border-white focus:outline-none placeholder-[#757575]"
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
+                    onFocus={() => setShowSuggestions(true)}
+                    onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                     autoFocus
                 />
                 <div className="absolute left-3 top-3 text-black">
@@ -75,6 +113,25 @@ export const Search = () => {
                          <path d="M10.533 1.279c-5.18 0-9.407 4.14-9.407 9.279s4.227 9.279 9.407 9.279c2.234 0 4.29-.77 5.907-2.058l4.353 4.353a1 1 0 1 0 1.414-1.414l-4.344-4.344a9.157 9.157 0 0 0 2.077-5.816c0-5.14-4.226-9.28-9.407-9.28zm-7.407 9.279c0-4.006 3.302-7.28 7.407-7.28s7.407 3.274 7.407 7.28-3.302 7.279-7.407 7.279-7.407-3.273-7.407-7.28z"></path>
                     </svg>
                 </div>
+
+                {/* Suggestions Dropdown */}
+                {showSuggestions && suggestions.length > 0 && (
+                    <div className="absolute top-full left-0 w-full mt-2 bg-[#242424] rounded-md shadow-2xl overflow-hidden border border-[#333]">
+                        {suggestions.map((track) => (
+                            <div 
+                                key={`suggestion-${track.id}`}
+                                className="flex items-center gap-3 p-3 hover:bg-[#333] cursor-pointer transition-colors border-b border-[#2a2a2a] last:border-0"
+                                onClick={() => handleSuggestionClick(track)}
+                            >
+                                <img src={track.coverUrl} alt="" className="w-10 h-10 rounded shadow-sm object-cover" />
+                                <div className="flex flex-col overflow-hidden">
+                                    <span className="text-sm font-medium text-white truncate">{track.title}</span>
+                                    <span className="text-xs text-spotify-grey truncate">{track.artist}</span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
 
             {loading && (
@@ -90,18 +147,24 @@ export const Search = () => {
                          <h2 className="text-2xl font-bold mb-4">Top result</h2>
                          <div 
                             className="bg-[#181818] hover:bg-[#282828] p-5 rounded-lg transition-colors group relative cursor-pointer"
-                            onClick={(e) => handlePlay(e, topResult)}
+                            onClick={(e) => { e.stopPropagation(); navigate(`/artist/${topResult.artistId}`); }}
                         >
                             <img src={topResult.coverUrl} alt={topResult.title} className="w-24 h-24 rounded shadow-lg mb-4 object-cover" />
                             <div className="text-3xl font-bold text-white mb-1 line-clamp-2 pb-1">{topResult.title}</div>
                             <div className="text-sm font-semibold text-spotify-grey mb-4 flex items-center gap-2">
                                 <span className="text-white">Song</span>
                                 <span className="w-1 h-1 bg-spotify-grey rounded-full"></span>
-                                <span className="line-clamp-1">{topResult.artist}</span>
+                                <Link 
+                                    to={`/artist/${topResult.artistId}`}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="line-clamp-1 hover:text-white hover:underline"
+                                >
+                                    {topResult.artist}
+                                </Link>
                             </div>
                             
                             {/* Large Play Button */}
-                            <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-300 shadow-xl">
+                            <div onClick={(e) => handlePlay(e, topResult)} className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-300 shadow-xl">
                                 <div className="w-12 h-12 bg-spotify-green rounded-full flex items-center justify-center text-black hover:scale-105 transition-transform">
                                     {currentTrack?.id === topResult.id && isPlaying ? (
                                        <svg height="24" width="24" viewBox="0 0 24 24" fill="currentColor"><path d="M5.7 3a.7.7 0 0 0-.7.7v16.6a.7.7 0 0 0 .7.7h2.6a.7.7 0 0 0 .7-.7V3.7a.7.7 0 0 0-.7-.7H5.7zm10 0a.7.7 0 0 0-.7.7v16.6a.7.7 0 0 0 .7.7h2.6a.7.7 0 0 0 .7-.7V3.7a.7.7 0 0 0-.7-.7h-2.6z"></path></svg>
@@ -121,10 +184,10 @@ export const Search = () => {
                                  <div 
                                     key={track.id} 
                                     className="flex items-center justify-between p-2 rounded hover:bg-[#2a2a2a] group transition-colors cursor-pointer h-14"
-                                    onClick={(e) => handlePlay(e, track)}
+                                    onClick={(e) => { e.stopPropagation(); navigate(`/track/${track.id}`); }}
                                 >
                                      <div className="flex items-center gap-4 flex-1 overflow-hidden">
-                                         <div className="relative w-10 h-10 min-w-[40px]">
+                                         <div className="relative w-10 h-10 min-w-[40px]" onClick={(e) => handlePlay(e, track)}>
                                             <img src={track.coverUrl} alt={track.title} className="w-10 h-10 rounded object-cover group-hover:opacity-50 transition-opacity" />
                                             <div className="absolute inset-0 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity">
                                                 {currentTrack?.id === track.id && isPlaying ? (
@@ -136,7 +199,13 @@ export const Search = () => {
                                          </div>
                                          <div className="flex flex-col overflow-hidden justify-center">
                                              <div className={`text-base font-normal truncate mb-0.5 ${currentTrack?.id === track.id ? 'text-spotify-green' : 'text-white'}`}>{track.title}</div>
-                                             <div className="text-sm text-spotify-grey truncate hover:underline group-hover:text-white transition-colors">{track.artist}</div>
+                                             <Link 
+                                                to={`/artist/${track.artistId}`}
+                                                onClick={(e) => e.stopPropagation()}
+                                                className="text-sm text-spotify-grey truncate hover:underline group-hover:text-white transition-colors"
+                                             >
+                                                {track.artist}
+                                             </Link>
                                          </div>
                                      </div>
                                      <div className="flex items-center gap-4 hidden sm:flex">
@@ -161,6 +230,7 @@ export const Search = () => {
                         {categories.map((cat, i) => (
                             <div 
                                 key={cat.id} 
+                                onClick={() => navigate(`/playlist/${cat.id}`)} // Ideally this would go to a Category page, but linking to playlist or just placeholder for now
                                 className={`${categoryColors[i % categoryColors.length]} h-48 rounded-lg p-4 relative overflow-hidden cursor-pointer hover:scale-[1.02] transition-transform`}
                             >
                                 <h3 className="text-2xl font-bold break-words max-w-[80%]">{cat.name}</h3>

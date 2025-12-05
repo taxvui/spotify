@@ -1,4 +1,4 @@
-import { Track, Playlist } from '../types';
+import { Track, Playlist, PlaylistFull, AlbumFull, ArtistFull } from '../types';
 
 const CLIENT_ID = 'bdc640818e8747eaa7ff3903a8d6cede';
 const CLIENT_SECRET = '40fec813eecc4ee9b8eed33fa9f8a3fc';
@@ -40,31 +40,57 @@ const formatDuration = (ms: number): string => {
   return `${minutes}:${Number(seconds) < 10 ? '0' : ''}${seconds}`;
 };
 
-const mapTrack = (item: any): Track => ({
-  id: item.id,
-  title: item.name,
-  artist: item.artists.map((a: any) => a.name).join(', '),
-  album: item.album.name,
-  duration: formatDuration(item.duration_ms),
-  coverUrl: item.album.images[0]?.url || 'https://via.placeholder.com/300',
-  previewUrl: item.preview_url,
-});
+// --- Mappers ---
+
+const mapTrack = (item: any): Track => {
+    // Handle both direct track object or track object inside 'track' property (playlist)
+    const track = item.track || item; 
+    
+    // Safety check for empty track objects
+    if (!track || !track.name) {
+        return {
+            id: 'unknown',
+            title: 'Unknown Track',
+            artist: 'Unknown',
+            album: 'Unknown',
+            duration: '0:00',
+            coverUrl: 'https://via.placeholder.com/300',
+        }
+    }
+
+    return {
+      id: track.id,
+      title: track.name,
+      artist: track.artists ? track.artists.map((a: any) => a.name).join(', ') : 'Unknown',
+      artistId: track.artists && track.artists[0] ? track.artists[0].id : '',
+      album: track.album ? track.album.name : '',
+      albumId: track.album ? track.album.id : '',
+      duration: formatDuration(track.duration_ms),
+      coverUrl: track.album?.images[0]?.url || 'https://via.placeholder.com/300',
+      previewUrl: track.preview_url,
+      addedAt: item.added_at ? new Date(item.added_at).toLocaleDateString() : undefined
+    };
+};
 
 const mapPlaylist = (item: any): Playlist => ({
   id: item.id,
   name: item.name,
   description: item.description || '',
-  coverUrl: item.images[0]?.url || 'https://via.placeholder.com/300',
+  coverUrl: item.images?.[0]?.url || 'https://via.placeholder.com/300',
   tracks: [],
+  type: 'playlist'
 });
 
 const mapAlbum = (item: any): Playlist => ({
     id: item.id,
     name: item.name,
-    description: item.artists.map((a: any) => a.name).join(', ') + ' • ' + (item.release_date?.split('-')[0] || ''),
-    coverUrl: item.images[0]?.url || 'https://via.placeholder.com/300',
+    description: item.artists ? item.artists.map((a: any) => a.name).join(', ') + ' • ' + (item.release_date?.split('-')[0] || '') : '',
+    coverUrl: item.images?.[0]?.url || 'https://via.placeholder.com/300',
     tracks: [],
+    type: 'album'
   });
+
+// --- API Methods ---
 
 export const searchTracks = async (query: string): Promise<Track[]> => {
   const token = await getAccessToken();
@@ -131,4 +157,148 @@ export const getCategories = async (): Promise<{id: string, name: string, icon: 
     } catch(e) {
         return [];
     }
+}
+
+export const getCategoryPlaylists = async (categoryId: string): Promise<Playlist[]> => {
+    const token = await getAccessToken();
+    if (!token) return [];
+
+    try {
+        const response = await fetch(`https://api.spotify.com/v1/browse/categories/${categoryId}/playlists?limit=12`, {
+            headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await response.json();
+        return data.playlists?.items?.map(mapPlaylist) || [];
+    } catch (e) {
+        return [];
+    }
+}
+
+export const getPlaylist = async (id: string): Promise<PlaylistFull | null> => {
+    const token = await getAccessToken();
+    if (!token) return null;
+
+    try {
+        const response = await fetch(`https://api.spotify.com/v1/playlists/${id}`, {
+            headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!response.ok) return null;
+        
+        const data = await response.json();
+        
+        // Handle pagination for tracks if needed (currently just taking first 100)
+        const tracks = data.tracks.items.map(mapTrack).filter((t: Track) => t.id !== 'unknown');
+
+        return {
+            id: data.id,
+            name: data.name,
+            description: data.description,
+            coverUrl: data.images?.[0]?.url || '',
+            tracks: tracks,
+            owner: data.owner.display_name,
+            followers: data.followers.total,
+            total_tracks: data.tracks.total,
+            type: 'playlist'
+        };
+    } catch (e) {
+        console.error(e);
+        return null;
+    }
+}
+
+export const getAlbum = async (id: string): Promise<AlbumFull | null> => {
+    const token = await getAccessToken();
+    if (!token) return null;
+
+    try {
+        const response = await fetch(`https://api.spotify.com/v1/albums/${id}`, {
+            headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!response.ok) return null;
+
+        const data = await response.json();
+        // Album tracks don't include the album object in the response items usually, so we patch it
+        const tracks = data.tracks.items.map((item: any) => ({
+            ...mapTrack(item),
+            coverUrl: data.images?.[0]?.url, // Use album cover for tracks
+            album: data.name
+        }));
+
+        return {
+            id: data.id,
+            name: data.name,
+            artist: data.artists.map((a: any) => a.name).join(', '),
+            artistId: data.artists[0]?.id,
+            release_date: data.release_date,
+            coverUrl: data.images?.[0]?.url || '',
+            tracks: tracks,
+            total_tracks: data.total_tracks,
+            type: 'album'
+        };
+    } catch (e) {
+        console.error(e);
+        return null;
+    }
+}
+
+export const getArtist = async (id: string): Promise<ArtistFull | null> => {
+    const token = await getAccessToken();
+    if (!token) return null;
+    try {
+        const response = await fetch(`https://api.spotify.com/v1/artists/${id}`, {
+            headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!response.ok) return null;
+        return await response.json();
+    } catch (e) { return null; }
+}
+
+export const getArtistTopTracks = async (id: string): Promise<Track[]> => {
+    const token = await getAccessToken();
+    if (!token) return [];
+    try {
+        const response = await fetch(`https://api.spotify.com/v1/artists/${id}/top-tracks?market=US`, {
+            headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await response.json();
+        return data.tracks.map(mapTrack);
+    } catch (e) { return []; }
+}
+
+export const getArtistAlbums = async (id: string): Promise<Playlist[]> => {
+    const token = await getAccessToken();
+    if (!token) return [];
+    try {
+        const response = await fetch(`https://api.spotify.com/v1/artists/${id}/albums?include_groups=album,single&limit=10`, {
+            headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await response.json();
+        return data.items.map(mapAlbum);
+    } catch (e) { return []; }
+}
+
+export const getTrack = async (id: string): Promise<Track | null> => {
+    const token = await getAccessToken();
+    if (!token) return null;
+    try {
+        const response = await fetch(`https://api.spotify.com/v1/tracks/${id}`, {
+            headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!response.ok) return null;
+        const data = await response.json();
+        return mapTrack(data);
+    } catch(e) { return null; }
+}
+
+export const getRecommendations = async (seedTracks: string[]): Promise<Track[]> => {
+    const token = await getAccessToken();
+    if (!token) return [];
+    try {
+        const seeds = seedTracks.slice(0, 5).join(',');
+        const response = await fetch(`https://api.spotify.com/v1/recommendations?seed_tracks=${seeds}&limit=10`, {
+            headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await response.json();
+        return data.tracks.map(mapTrack);
+    } catch(e) { return []; }
 }

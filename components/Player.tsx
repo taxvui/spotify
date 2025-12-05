@@ -29,17 +29,36 @@ export const Player = () => {
   const { currentTrack, isPlaying, togglePlay } = usePlayer();
 
   return (
-    <footer className="h-[90px] w-full bg-black border-t border-[#282828] px-4 flex items-center justify-between z-50">
+    <footer className="h-[90px] w-full bg-black border-t border-[#282828] px-4 flex items-center justify-between z-50 transition-all duration-300">
+      <style>{`
+        @keyframes eq-bar {
+          0%, 100% { height: 4px; }
+          50% { height: 14px; }
+        }
+        .animate-eq-1 { animation: eq-bar 0.6s ease-in-out infinite alternate; }
+        .animate-eq-2 { animation: eq-bar 0.8s ease-in-out infinite alternate -0.2s; }
+        .animate-eq-3 { animation: eq-bar 0.7s ease-in-out infinite alternate -0.4s; }
+        .animate-eq-4 { animation: eq-bar 0.5s ease-in-out infinite alternate -0.1s; }
+
+        @keyframes breathe {
+           0%, 100% { transform: scale(1); filter: brightness(1); }
+           50% { transform: scale(1.02); filter: brightness(1.05); }
+        }
+        .animate-breathe { animation: breathe 4s ease-in-out infinite; }
+      `}</style>
+
       {/* Track Info */}
       <div className="flex items-center w-1/3 min-w-[120px]">
         {currentTrack ? (
           <>
-            <img 
-              src={currentTrack.coverUrl} 
-              alt={currentTrack.title} 
-              className="h-14 w-14 rounded bg-[#333] object-cover mr-4"
-            />
-            <div className="flex flex-col justify-center overflow-hidden">
+            <div className={`relative h-14 w-14 mr-4 transition-all duration-700 ${isPlaying ? 'shadow-[0_4px_20px_rgba(29,185,84,0.4)]' : ''}`}>
+               <img 
+                src={currentTrack.coverUrl} 
+                alt={currentTrack.title} 
+                className={`h-full w-full rounded bg-[#333] object-cover transition-transform duration-700 ${isPlaying ? 'animate-breathe' : ''}`}
+              />
+            </div>
+            <div className="flex flex-col justify-center overflow-hidden mr-3">
               <div className="text-sm font-medium hover:underline cursor-pointer truncate text-white">
                 {currentTrack.title}
               </div>
@@ -47,6 +66,16 @@ export const Player = () => {
                 {currentTrack.artist}
               </div>
             </div>
+            
+            {/* Visualizer - Only visible when playing */}
+            {isPlaying && (
+                <div className="flex items-end gap-[2px] h-4 pb-0.5 ml-1 hidden sm:flex">
+                    <div className="w-[3px] bg-spotify-green rounded-sm animate-eq-1"></div>
+                    <div className="w-[3px] bg-spotify-green rounded-sm animate-eq-2"></div>
+                    <div className="w-[3px] bg-spotify-green rounded-sm animate-eq-3"></div>
+                    <div className="w-[3px] bg-spotify-green rounded-sm animate-eq-4"></div>
+                </div>
+            )}
           </>
         ) : (
              <div className="h-14 w-14 rounded bg-[#282828] mr-4 animate-pulse"></div>
@@ -81,9 +110,9 @@ export const Player = () => {
         
         <div className="w-full flex items-center gap-2 text-xs text-spotify-grey">
           <span>0:00</span>
-          <div className="h-1 bg-[#4d4d4d] rounded-full w-full relative group">
-            <div className={`h-full bg-white rounded-full absolute top-0 left-0 ${isPlaying ? 'w-1/3' : 'w-0'}`}></div>
-            <div className="hidden group-hover:block absolute top-1/2 -translate-y-1/2 left-1/3 w-3 h-3 bg-white rounded-full shadow-lg"></div>
+          <div className="h-1 bg-[#4d4d4d] rounded-full w-full relative group cursor-pointer">
+            <div className={`h-full bg-white rounded-full absolute top-0 left-0 transition-all duration-1000 linear ${isPlaying ? 'w-full animate-pulse' : 'w-0'}`} style={{width: isPlaying ? '45%' : '0%'}}></div>
+            <div className="hidden group-hover:block absolute top-1/2 -translate-y-1/2 left-[45%] w-3 h-3 bg-white rounded-full shadow-lg"></div>
           </div>
           <span>{currentTrack?.duration || "-:--"}</span>
         </div>
@@ -93,7 +122,7 @@ export const Player = () => {
       <div className="w-1/3 flex justify-end items-center gap-2 text-spotify-grey">
           {/* Volume Icon Placeholder */}
          <svg role="img" height="16" width="16" viewBox="0 0 16 16" fill="currentColor"><path d="M9.741.534a.75.75 0 0 1 .26.966A9.458 9.458 0 0 0 12.25 8a9.458 9.458 0 0 0-2.25 6.5.75.75 0 0 1-1.22.772A10.958 10.958 0 0 1 11.236 8a10.958 10.958 0 0 1-2.46-6.5.75.75 0 0 1 .965-.966z"></path><path d="M11.741 3.545a.75.75 0 0 1 .23.974A5.961 5.961 0 0 0 13.5 8a5.961 5.961 0 0 0-1.529 3.481.75.75 0 1 1-1.258-.802A7.461 7.461 0 0 1 12.5 8a7.461 7.461 0 0 1-1.987-4.433.75.75 0 0 1 .998-.022z"></path></svg>
-         <div className="w-24 h-1 bg-[#4d4d4d] rounded-full group relative">
+         <div className="w-24 h-1 bg-[#4d4d4d] rounded-full group relative cursor-pointer">
              <div className="h-full bg-white rounded-full w-2/3 group-hover:bg-spotify-green"></div>
          </div>
       </div>
