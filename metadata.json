@@ -1,0 +1,5 @@
+{
+  "name": "Gemini Stream",
+  "description": "A Spotify-inspired web player clone featuring AI-powered search and playlist generation using Google Gemini.",
+  "requestFramePermissions": []
+}
