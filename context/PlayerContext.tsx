@@ -1,13 +1,15 @@
-import React, { createContext, useContext, useState, ReactNode, useRef, useEffect } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useRef, useEffect, useCallback } from 'react';
 import { Track } from '../types';
 
 interface PlayerContextType {
   currentTrack: Track | null;
   isPlaying: boolean;
+  queue: Track[];
   playTrack: (track: Track) => void;
   togglePlay: () => void;
   nextTrack: () => void;
   prevTrack: () => void;
+  addToQueue: (track: Track) => void;
 }
 
 const PlayerContext = createContext<PlayerContextType | undefined>(undefined);
@@ -15,13 +17,13 @@ const PlayerContext = createContext<PlayerContextType | undefined>(undefined);
 export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [queue, setQueue] = useState<Track[]>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   // Initialize audio object
   useEffect(() => {
     if (!audioRef.current) {
         audioRef.current = new Audio();
-        audioRef.current.onended = () => setIsPlaying(false);
         // Lower volume slightly by default
         audioRef.current.volume = 0.5;
     }
@@ -42,8 +44,6 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
              // No preview available, we can still show the player but can't play audio
              console.log("No preview URL for track:", currentTrack.title);
              audioRef.current.src = "";
-             // Optional: reset playing state if you don't want to show "playing" UI for silent tracks
-             // setIsPlaying(false); 
         }
     }
   }, [currentTrack]);
@@ -74,17 +74,39 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     }
   };
 
-  const nextTrack = () => {
-    // In a real app, this would check the queue
-    console.log("Next track clicked");
+  const addToQueue = (track: Track) => {
+    setQueue((prev) => [...prev, track]);
   };
+
+  const nextTrack = useCallback(() => {
+    if (queue.length > 0) {
+        const next = queue[0];
+        setQueue((prev) => prev.slice(1));
+        setCurrentTrack(next);
+        setIsPlaying(true);
+    } else {
+        setIsPlaying(false);
+        if (audioRef.current) {
+            audioRef.current.currentTime = 0;
+        }
+    }
+  }, [queue]);
 
   const prevTrack = () => {
-    console.log("Prev track clicked");
+     if (audioRef.current) {
+         audioRef.current.currentTime = 0;
+     }
   };
 
+  // Bind onended to nextTrack whenever nextTrack changes (due to queue updates)
+  useEffect(() => {
+      if (audioRef.current) {
+          audioRef.current.onended = nextTrack;
+      }
+  }, [nextTrack]);
+
   return (
-    <PlayerContext.Provider value={{ currentTrack, isPlaying, playTrack, togglePlay, nextTrack, prevTrack }}>
+    <PlayerContext.Provider value={{ currentTrack, isPlaying, queue, playTrack, togglePlay, nextTrack, prevTrack, addToQueue }}>
       {children}
     </PlayerContext.Provider>
   );

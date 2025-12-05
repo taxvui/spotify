@@ -10,6 +10,12 @@ const PlayIcon = () => (
     </svg>
 )
 
+const AddToQueueIcon = () => (
+    <svg role="img" height="16" width="16" aria-hidden="true" viewBox="0 0 16 16" fill="currentColor">
+         <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM8.5 4.5a.5.5 0 0 0-1 0v3h-3a.5.5 0 0 0 0 1h3v3a.5.5 0 0 0 1 0v-3h3a.5.5 0 0 0 0-1h-3v-3z"></path>
+    </svg>
+)
+
 export const Search = () => {
     const [query, setQuery] = useState('');
     const [results, setResults] = useState<Track[]>([]);
@@ -21,7 +27,7 @@ export const Search = () => {
     const [suggestions, setSuggestions] = useState<Track[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
     
-    const { playTrack, currentTrack, isPlaying } = usePlayer();
+    const { playTrack, currentTrack, isPlaying, addToQueue } = usePlayer();
     const navigate = useNavigate();
 
     // Fetch categories on mount
@@ -86,6 +92,12 @@ export const Search = () => {
     const handlePlay = (e: React.MouseEvent, track: Track) => {
         e.stopPropagation();
         playTrack(track);
+    }
+
+    const handleAddToQueue = (e: React.MouseEvent, track: Track) => {
+        e.stopPropagation();
+        addToQueue(track);
+        // Optional: Could add a toast notification here
     }
 
     const handleSuggestionClick = (track: Track) => {
@@ -209,6 +221,13 @@ export const Search = () => {
                                          </div>
                                      </div>
                                      <div className="flex items-center gap-4 hidden sm:flex">
+                                        <button 
+                                            onClick={(e) => handleAddToQueue(e, track)}
+                                            className="text-spotify-grey hover:text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2"
+                                            title="Add to queue"
+                                        >
+                                            <AddToQueueIcon />
+                                        </button>
                                         <div className="w-6 flex justify-center">
                                              <button className="text-spotify-grey hover:text-white opacity-0 group-hover:opacity-100 transition-opacity">
                                                 <svg role="img" height="16" width="16" aria-hidden="true" viewBox="0 0 16 16" fill="currentColor"><path d="M1.69 2H14.5v12H1.69V2zm11.81 11V3H2.5v10h11zM7 5v3H5v2h2v3h2v-3h2V8H9V5H7z"></path></svg>
@@ -230,7 +249,7 @@ export const Search = () => {
                         {categories.map((cat, i) => (
                             <div 
                                 key={cat.id} 
-                                onClick={() => navigate(`/playlist/${cat.id}`)} // Ideally this would go to a Category page, but linking to playlist or just placeholder for now
+                                onClick={() => navigate(`/playlist/${cat.id}`)} 
                                 className={`${categoryColors[i % categoryColors.length]} h-48 rounded-lg p-4 relative overflow-hidden cursor-pointer hover:scale-[1.02] transition-transform`}
                             >
                                 <h3 className="text-2xl font-bold break-words max-w-[80%]">{cat.name}</h3>
