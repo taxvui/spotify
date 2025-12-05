@@ -5,30 +5,43 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Gemini Stream</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            colors: {
-              spotify: {
-                green: '#1db954',
-                black: '#191414',
-                dark: '#121212',
-                light: '#282828',
-                grey: '#b3b3b3',
-              }
-            }
-          }
-        }
-      }
-    </script>
     <style>
+      :root {
+        --spotify-green: #1db954;
+        --spotify-black: #191414;
+        --spotify-dark: #121212;
+        --spotify-light: #282828;
+        --spotify-grey: #b3b3b3;
+        --spotify-card: #181818;
+        --spotify-highlight: #2a2a2a;
+        --spotify-hover: #3a3a3a;
+      }
+
+      .high-contrast {
+        --spotify-green: #00ff00;
+        --spotify-black: #000000;
+        --spotify-dark: #000000;
+        --spotify-light: #333333;
+        --spotify-grey: #ffffff;
+        --spotify-card: #000000;
+        --spotify-highlight: #1a1a1a;
+        --spotify-hover: #333333;
+      }
+
+      /* Add borders in high contrast mode to define edges against black background */
+      .high-contrast .bg-spotify-card,
+      .high-contrast .bg-spotify-highlight,
+      .high-contrast .bg-spotify-light,
+      .high-contrast input {
+        border: 1px solid #ffffff;
+      }
+      
       /* Custom Scrollbar for Webkit */
       ::-webkit-scrollbar {
         width: 12px;
       }
       ::-webkit-scrollbar-track {
-        background: #000; 
+        background: var(--spotify-black); 
       }
       ::-webkit-scrollbar-thumb {
         background: #555; 
@@ -38,11 +51,31 @@
         background: #888; 
       }
       body {
-        background-color: #000;
+        background-color: var(--spotify-black);
         color: #fff;
         overflow: hidden; /* App handles scrolling */
       }
     </style>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              spotify: {
+                green: 'var(--spotify-green)',
+                black: 'var(--spotify-black)',
+                dark: 'var(--spotify-dark)',
+                light: 'var(--spotify-light)',
+                grey: 'var(--spotify-grey)',
+                card: 'var(--spotify-card)',
+                highlight: 'var(--spotify-highlight)',
+                hover: 'var(--spotify-hover)',
+              }
+            }
+          }
+        }
+      }
+    </script>
   <script type="importmap">
 {
   "imports": {

@@ -29,12 +29,10 @@ export const Home = () => {
                     ]);
                 } else if (activeChip === 'Music') {
                     // Fetch specific category playlists for Music
-                    // 'pop' is a safe bet for generic "Music" or we could try 'party'
                     const musicPlaylists = await getCategoryPlaylists('pop');
                     feat = musicPlaylists;
                     rel = await getNewReleases(); // Keep new releases for Music
                 } else if (activeChip === 'Podcasts') {
-                    // Just show some educational/spoken word playlists as proxy if API limits podcasts
                     const podcastPlaylists = await getCategoryPlaylists('educational');
                     feat = podcastPlaylists;
                     rel = []; 
@@ -65,7 +63,7 @@ export const Home = () => {
                         className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
                             activeChip === chip 
                             ? 'bg-white text-black' 
-                            : 'bg-[#2a2a2a] text-white hover:bg-[#3a3a3a]'
+                            : 'bg-spotify-highlight text-white hover:bg-spotify-hover'
                         }`}
                     >
                         {chip}
@@ -85,7 +83,7 @@ export const Home = () => {
                     {activeChip !== 'Podcasts' && (
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
                             {topPicks.map(playlist => (
-                                <div key={`recent-${playlist.id}`} className="flex items-center bg-[#2a2a2a] hover:bg-[#3a3a3a] transition-colors rounded-md overflow-hidden cursor-pointer group h-16 sm:h-20" onClick={() => window.location.hash = `#/playlist/${playlist.id}`}>
+                                <div key={`recent-${playlist.id}`} className="flex items-center bg-spotify-highlight hover:bg-spotify-hover transition-colors rounded-md overflow-hidden cursor-pointer group h-16 sm:h-20" onClick={() => window.location.hash = `#/playlist/${playlist.id}`}>
                                     <img src={playlist.coverUrl} alt={playlist.name} className="h-full w-16 sm:w-20 object-cover shadow-lg" />
                                     <div className="flex-1 px-4 font-bold text-white flex justify-between items-center overflow-hidden">
                                         <span className="truncate pr-2">{playlist.name}</span>

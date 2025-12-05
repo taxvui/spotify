@@ -30,8 +30,6 @@ export const Card: React.FC<CardProps> = ({ id, image, title, description, type 
     if (track) {
         playTrack(track);
     } else {
-        // For playlists/albums, ideally we would fetch the tracks and play the first one
-        // For now, let's just navigate
         navigate(`/${type}/${id}`);
     }
   };
@@ -43,7 +41,7 @@ export const Card: React.FC<CardProps> = ({ id, image, title, description, type 
   return (
     <div 
         onClick={handleClick}
-        className="bg-[#181818] hover:bg-[#282828] p-4 rounded-md transition-colors duration-300 cursor-pointer group flex flex-col gap-4 relative"
+        className="bg-spotify-card hover:bg-spotify-light p-4 rounded-md transition-colors duration-300 cursor-pointer group flex flex-col gap-4 relative"
     >
       <div className={`relative shadow-lg overflow-hidden aspect-square ${type === 'artist' ? 'rounded-full' : 'rounded-md'}`}>
         <img src={image} alt={title} className="w-full h-full object-cover" />

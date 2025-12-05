@@ -124,8 +124,6 @@ export const Search = () => {
         }
 
         if (genreFilter) {
-            // Genre matching might be partial since we don't have full genre data usually on track
-            // This is a placeholder for when data is available
             matchesGenre = track.genre ? track.genre.toLowerCase().includes(genreFilter.toLowerCase()) : false;
         }
 
@@ -140,7 +138,7 @@ export const Search = () => {
                 <input 
                     type="text" 
                     placeholder="What do you want to listen to?" 
-                    className="w-full rounded-full py-3 px-12 bg-[#242424] text-white border border-transparent focus:border-white focus:outline-none placeholder-[#757575]"
+                    className="w-full rounded-full py-3 px-12 bg-spotify-light text-white border border-transparent focus:border-white focus:outline-none placeholder-spotify-grey transition-colors"
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     onFocus={() => setShowSuggestions(true)}
@@ -155,11 +153,11 @@ export const Search = () => {
 
                 {/* Suggestions Dropdown */}
                 {showSuggestions && suggestions.length > 0 && (
-                    <div className="absolute top-full left-0 w-full mt-2 bg-[#242424] rounded-md shadow-2xl overflow-hidden border border-[#333]">
+                    <div className="absolute top-full left-0 w-full mt-2 bg-spotify-light rounded-md shadow-2xl overflow-hidden border border-spotify-hover z-[60]">
                         {suggestions.map((track) => (
                             <div 
                                 key={`suggestion-${track.id}`}
-                                className="flex items-center gap-3 p-3 hover:bg-[#333] cursor-pointer transition-colors border-b border-[#2a2a2a] last:border-0"
+                                className="flex items-center gap-3 p-3 hover:bg-spotify-hover cursor-pointer transition-colors border-b border-spotify-hover last:border-0"
                                 onClick={() => handleSuggestionClick(track)}
                             >
                                 <img src={track.coverUrl} alt="" className="w-10 h-10 rounded shadow-sm object-cover" />
@@ -186,7 +184,7 @@ export const Search = () => {
                          <div className="lg:col-span-2">
                             <h2 className="text-2xl font-bold mb-4">Top result</h2>
                             <div 
-                                className="bg-[#181818] hover:bg-[#282828] p-5 rounded-lg transition-colors group relative cursor-pointer"
+                                className="bg-spotify-card hover:bg-spotify-light p-5 rounded-lg transition-colors group relative cursor-pointer"
                                 onClick={(e) => { e.stopPropagation(); navigate(`/artist/${topResult.artistId}`); }}
                             >
                                 <img src={topResult.coverUrl} alt={topResult.title} className="w-24 h-24 rounded shadow-lg mb-4 object-cover" />
@@ -238,7 +236,7 @@ export const Search = () => {
 
                          {/* Filter Bar */}
                          {showFilters && (
-                             <div className="flex gap-4 mb-6 bg-[#181818] p-4 rounded-md">
+                             <div className="flex gap-4 mb-6 bg-spotify-card p-4 rounded-md">
                                  <div className="flex flex-col gap-1">
                                      <label className="text-xs font-bold text-spotify-grey uppercase">Year</label>
                                      <input 
@@ -246,7 +244,7 @@ export const Search = () => {
                                         placeholder="YYYY" 
                                         value={yearFilter}
                                         onChange={(e) => setYearFilter(e.target.value)}
-                                        className="bg-[#2a2a2a] text-white text-sm rounded px-3 py-2 border border-transparent focus:border-spotify-grey focus:outline-none w-24"
+                                        className="bg-spotify-highlight text-white text-sm rounded px-3 py-2 border border-transparent focus:border-spotify-grey focus:outline-none w-24"
                                      />
                                  </div>
                                  <div className="flex flex-col gap-1">
@@ -256,7 +254,7 @@ export const Search = () => {
                                         placeholder="Pop, Rock..." 
                                         value={genreFilter}
                                         onChange={(e) => setGenreFilter(e.target.value)}
-                                        className="bg-[#2a2a2a] text-white text-sm rounded px-3 py-2 border border-transparent focus:border-spotify-grey focus:outline-none w-40"
+                                        className="bg-spotify-highlight text-white text-sm rounded px-3 py-2 border border-transparent focus:border-spotify-grey focus:outline-none w-40"
                                      />
                                  </div>
                                  {(yearFilter || genreFilter) && (
@@ -277,7 +275,7 @@ export const Search = () => {
                                 filteredResults.map((track) => (
                                     <div 
                                         key={track.id} 
-                                        className="flex items-center justify-between p-2 rounded hover:bg-[#2a2a2a] group transition-colors cursor-pointer h-14"
+                                        className="flex items-center justify-between p-2 rounded hover:bg-spotify-highlight group transition-colors cursor-pointer h-14"
                                         onClick={(e) => { e.stopPropagation(); navigate(`/track/${track.id}`); }}
                                     >
                                         <div className="flex items-center gap-4 flex-1 overflow-hidden">
