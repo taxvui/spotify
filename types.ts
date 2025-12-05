@@ -9,6 +9,8 @@ export interface Track {
   coverUrl: string;
   previewUrl?: string | null;
   addedAt?: string; // Date added for playlists
+  releaseYear?: string;
+  genre?: string;
 }
 
 export interface Playlist {
@@ -52,6 +54,12 @@ export interface SearchState {
   results: Track[];
   isLoading: boolean;
   error: string | null;
+}
+
+export interface UserProfile {
+  id: string;
+  display_name: string;
+  images: { url: string }[];
 }
 
 export enum ViewType {

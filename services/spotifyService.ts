@@ -1,12 +1,56 @@
-import { Track, Playlist, PlaylistFull, AlbumFull, ArtistFull } from '../types';
+import { Track, Playlist, PlaylistFull, AlbumFull, ArtistFull, UserProfile } from '../types';
 
 const CLIENT_ID = 'bdc640818e8747eaa7ff3903a8d6cede';
+// Note: In a real production app, never expose client secret on the client side.
+// This should be handled by a backend proxy.
 const CLIENT_SECRET = '40fec813eecc4ee9b8eed33fa9f8a3fc';
+const REDIRECT_URI = window.location.origin + '/callback';
 
 let accessToken = '';
 let tokenExpiration = 0;
+let userAccessToken = '';
+let userTokenExpiration = 0;
+
+// --- Authentication ---
+
+export const loginWithSpotify = () => {
+    const scope = 'user-read-private user-read-email playlist-read-private';
+    const authUrl = `https://accounts.spotify.com/authorize?client_id=${CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${encodeURIComponent(scope)}`;
+    window.location.href = authUrl;
+};
+
+export const handleAuthCallback = async (code: string) => {
+    const auth = btoa(`${CLIENT_ID}:${CLIENT_SECRET}`);
+    try {
+        const response = await fetch('https://accounts.spotify.com/api/token', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Basic ${auth}`,
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `grant_type=authorization_code&code=${code}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}`,
+        });
+
+        if (!response.ok) throw new Error('Failed to exchange code');
+
+        const data = await response.json();
+        userAccessToken = data.access_token;
+        userTokenExpiration = Date.now() + (data.expires_in * 1000);
+        // Also save refresh token if needed, but keeping it simple for now
+        return true;
+    } catch (e) {
+        console.error(e);
+        return false;
+    }
+}
 
 const getAccessToken = async () => {
+  // Prefer user token if logged in
+  if (userAccessToken && Date.now() < userTokenExpiration) {
+      return userAccessToken;
+  }
+
+  // Fallback to Client Credentials
   if (accessToken && Date.now() < tokenExpiration) {
     return accessToken;
   }
@@ -68,7 +112,8 @@ const mapTrack = (item: any): Track => {
       duration: formatDuration(track.duration_ms),
       coverUrl: track.album?.images[0]?.url || 'https://via.placeholder.com/300',
       previewUrl: track.preview_url,
-      addedAt: item.added_at ? new Date(item.added_at).toLocaleDateString() : undefined
+      addedAt: item.added_at ? new Date(item.added_at).toLocaleDateString() : undefined,
+      releaseYear: track.album?.release_date?.split('-')[0]
     };
 };
 
@@ -91,6 +136,17 @@ const mapAlbum = (item: any): Playlist => ({
   });
 
 // --- API Methods ---
+
+export const getCurrentUserProfile = async (): Promise<UserProfile | null> => {
+    if (!userAccessToken) return null;
+    try {
+        const response = await fetch('https://api.spotify.com/v1/me', {
+            headers: { Authorization: `Bearer ${userAccessToken}` }
+        });
+        if (!response.ok) return null;
+        return await response.json();
+    } catch (e) { return null; }
+}
 
 export const searchTracks = async (query: string): Promise<Track[]> => {
   const token = await getAccessToken();
@@ -221,7 +277,8 @@ export const getAlbum = async (id: string): Promise<AlbumFull | null> => {
         const tracks = data.tracks.items.map((item: any) => ({
             ...mapTrack(item),
             coverUrl: data.images?.[0]?.url, // Use album cover for tracks
-            album: data.name
+            album: data.name,
+            releaseYear: data.release_date?.split('-')[0] // Ensure release year comes from album details
         }));
 
         return {

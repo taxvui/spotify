@@ -16,6 +16,12 @@ const AddToQueueIcon = () => (
     </svg>
 )
 
+const FilterIcon = () => (
+    <svg role="img" height="16" width="16" aria-hidden="true" viewBox="0 0 16 16" fill="currentColor">
+        <path d="M15 2.5H1v-1h14v1zM2.5 8h11v-1h-11v1zM11.5 13.5h-7v-1h7v1z"></path>
+    </svg>
+)
+
 export const Search = () => {
     const [query, setQuery] = useState('');
     const [results, setResults] = useState<Track[]>([]);
@@ -27,6 +33,11 @@ export const Search = () => {
     const [suggestions, setSuggestions] = useState<Track[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
     
+    // Filter state
+    const [showFilters, setShowFilters] = useState(false);
+    const [yearFilter, setYearFilter] = useState('');
+    const [genreFilter, setGenreFilter] = useState('');
+
     const { playTrack, currentTrack, isPlaying, addToQueue } = usePlayer();
     const navigate = useNavigate();
 
@@ -97,7 +108,6 @@ export const Search = () => {
     const handleAddToQueue = (e: React.MouseEvent, track: Track) => {
         e.stopPropagation();
         addToQueue(track);
-        // Optional: Could add a toast notification here
     }
 
     const handleSuggestionClick = (track: Track) => {
@@ -105,7 +115,24 @@ export const Search = () => {
         setShowSuggestions(false);
     };
 
-    const topResult = results[0];
+    const filteredResults = results.filter(track => {
+        let matchesYear = true;
+        let matchesGenre = true;
+
+        if (yearFilter) {
+            matchesYear = track.releaseYear === yearFilter;
+        }
+
+        if (genreFilter) {
+            // Genre matching might be partial since we don't have full genre data usually on track
+            // This is a placeholder for when data is available
+            matchesGenre = track.genre ? track.genre.toLowerCase().includes(genreFilter.toLowerCase()) : false;
+        }
+
+        return matchesYear && matchesGenre;
+    });
+
+    const topResult = filteredResults[0];
 
     return (
         <div className="p-6 pt-20">
@@ -154,89 +181,153 @@ export const Search = () => {
 
             {!loading && results.length > 0 && (
                 <div className="mb-8 grid grid-cols-1 lg:grid-cols-5 gap-6">
-                    {/* Top Result Section */}
-                    <div className="lg:col-span-2">
-                         <h2 className="text-2xl font-bold mb-4">Top result</h2>
-                         <div 
-                            className="bg-[#181818] hover:bg-[#282828] p-5 rounded-lg transition-colors group relative cursor-pointer"
-                            onClick={(e) => { e.stopPropagation(); navigate(`/artist/${topResult.artistId}`); }}
-                        >
-                            <img src={topResult.coverUrl} alt={topResult.title} className="w-24 h-24 rounded shadow-lg mb-4 object-cover" />
-                            <div className="text-3xl font-bold text-white mb-1 line-clamp-2 pb-1">{topResult.title}</div>
-                            <div className="text-sm font-semibold text-spotify-grey mb-4 flex items-center gap-2">
-                                <span className="text-white">Song</span>
-                                <span className="w-1 h-1 bg-spotify-grey rounded-full"></span>
-                                <Link 
-                                    to={`/artist/${topResult.artistId}`}
-                                    onClick={(e) => e.stopPropagation()}
-                                    className="line-clamp-1 hover:text-white hover:underline"
-                                >
-                                    {topResult.artist}
-                                </Link>
-                            </div>
-                            
-                            {/* Large Play Button */}
-                            <div onClick={(e) => handlePlay(e, topResult)} className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-300 shadow-xl">
-                                <div className="w-12 h-12 bg-spotify-green rounded-full flex items-center justify-center text-black hover:scale-105 transition-transform">
-                                    {currentTrack?.id === topResult.id && isPlaying ? (
-                                       <svg height="24" width="24" viewBox="0 0 24 24" fill="currentColor"><path d="M5.7 3a.7.7 0 0 0-.7.7v16.6a.7.7 0 0 0 .7.7h2.6a.7.7 0 0 0 .7-.7V3.7a.7.7 0 0 0-.7-.7H5.7zm10 0a.7.7 0 0 0-.7.7v16.6a.7.7 0 0 0 .7.7h2.6a.7.7 0 0 0 .7-.7V3.7a.7.7 0 0 0-.7-.7h-2.6z"></path></svg>
-                                    ) : (
-                                       <svg height="24" width="24" viewBox="0 0 24 24" fill="currentColor"><path d="m7.05 3.606 13.49 7.788a.7.7 0 0 1 0 1.212L7.05 20.394A.7.7 0 0 1 6 19.788V4.212a.7.7 0 0 1 1.05-.606z"></path></svg>
+                    {/* Top Result Section - Only show if not filtered out */}
+                    {topResult && !yearFilter && !genreFilter && (
+                         <div className="lg:col-span-2">
+                            <h2 className="text-2xl font-bold mb-4">Top result</h2>
+                            <div 
+                                className="bg-[#181818] hover:bg-[#282828] p-5 rounded-lg transition-colors group relative cursor-pointer"
+                                onClick={(e) => { e.stopPropagation(); navigate(`/artist/${topResult.artistId}`); }}
+                            >
+                                <img src={topResult.coverUrl} alt={topResult.title} className="w-24 h-24 rounded shadow-lg mb-4 object-cover" />
+                                <div className="text-3xl font-bold text-white mb-1 line-clamp-2 pb-1">{topResult.title}</div>
+                                <div className="text-sm font-semibold text-spotify-grey mb-4 flex items-center gap-2">
+                                    <span className="text-white">Song</span>
+                                    <span className="w-1 h-1 bg-spotify-grey rounded-full"></span>
+                                    <Link 
+                                        to={`/artist/${topResult.artistId}`}
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="line-clamp-1 hover:text-white hover:underline"
+                                    >
+                                        {topResult.artist}
+                                    </Link>
+                                    {topResult.releaseYear && (
+                                        <>
+                                            <span className="w-1 h-1 bg-spotify-grey rounded-full"></span>
+                                            <span className="text-spotify-grey">{topResult.releaseYear}</span>
+                                        </>
                                     )}
                                 </div>
+                                
+                                {/* Large Play Button */}
+                                <div onClick={(e) => handlePlay(e, topResult)} className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-300 shadow-xl">
+                                    <div className="w-12 h-12 bg-spotify-green rounded-full flex items-center justify-center text-black hover:scale-105 transition-transform">
+                                        {currentTrack?.id === topResult.id && isPlaying ? (
+                                        <svg height="24" width="24" viewBox="0 0 24 24" fill="currentColor"><path d="M5.7 3a.7.7 0 0 0-.7.7v16.6a.7.7 0 0 0 .7.7h2.6a.7.7 0 0 0 .7-.7V3.7a.7.7 0 0 0-.7-.7H5.7zm10 0a.7.7 0 0 0-.7.7v16.6a.7.7 0 0 0 .7.7h2.6a.7.7 0 0 0 .7-.7V3.7a.7.7 0 0 0-.7-.7h-2.6z"></path></svg>
+                                        ) : (
+                                        <svg height="24" width="24" viewBox="0 0 24 24" fill="currentColor"><path d="m7.05 3.606 13.49 7.788a.7.7 0 0 1 0 1.212L7.05 20.394A.7.7 0 0 1 6 19.788V4.212a.7.7 0 0 1 1.05-.606z"></path></svg>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
-                         </div>
-                    </div>
+                        </div>
+                    )}
 
                     {/* Songs List Section */}
-                     <div className="lg:col-span-3">
-                         <h2 className="text-2xl font-bold mb-4">Songs</h2>
-                         <div className="flex flex-col">
-                             {results.map((track) => (
-                                 <div 
-                                    key={track.id} 
-                                    className="flex items-center justify-between p-2 rounded hover:bg-[#2a2a2a] group transition-colors cursor-pointer h-14"
-                                    onClick={(e) => { e.stopPropagation(); navigate(`/track/${track.id}`); }}
-                                >
-                                     <div className="flex items-center gap-4 flex-1 overflow-hidden">
-                                         <div className="relative w-10 h-10 min-w-[40px]" onClick={(e) => handlePlay(e, track)}>
-                                            <img src={track.coverUrl} alt={track.title} className="w-10 h-10 rounded object-cover group-hover:opacity-50 transition-opacity" />
-                                            <div className="absolute inset-0 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity">
-                                                {currentTrack?.id === track.id && isPlaying ? (
-                                                    <svg height="16" width="16" viewBox="0 0 16 16" fill="currentColor"><path d="M2.7 1a.7.7 0 0 0-.7.7v12.6a.7.7 0 0 0 .7.7h2.6a.7.7 0 0 0 .7-.7V1.7a.7.7 0 0 0-.7-.7H2.7zm8 0a.7.7 0 0 0-.7.7v12.6a.7.7 0 0 0 .7.7h2.6a.7.7 0 0 0 .7-.7V1.7a.7.7 0 0 0-.7-.7h-2.6z"></path></svg>
-                                                ) : (
-                                                    <PlayIcon />
-                                                )}
-                                            </div>
-                                         </div>
-                                         <div className="flex flex-col overflow-hidden justify-center">
-                                             <div className={`text-base font-normal truncate mb-0.5 ${currentTrack?.id === track.id ? 'text-spotify-green' : 'text-white'}`}>{track.title}</div>
-                                             <Link 
-                                                to={`/artist/${track.artistId}`}
-                                                onClick={(e) => e.stopPropagation()}
-                                                className="text-sm text-spotify-grey truncate hover:underline group-hover:text-white transition-colors"
-                                             >
-                                                {track.artist}
-                                             </Link>
-                                         </div>
-                                     </div>
-                                     <div className="flex items-center gap-4 hidden sm:flex">
-                                        <button 
-                                            onClick={(e) => handleAddToQueue(e, track)}
-                                            className="text-spotify-grey hover:text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2"
-                                            title="Add to queue"
-                                        >
-                                            <AddToQueueIcon />
-                                        </button>
-                                        <div className="w-6 flex justify-center">
-                                             <button className="text-spotify-grey hover:text-white opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <svg role="img" height="16" width="16" aria-hidden="true" viewBox="0 0 16 16" fill="currentColor"><path d="M1.69 2H14.5v12H1.69V2zm11.81 11V3H2.5v10h11zM7 5v3H5v2h2v3h2v-3h2V8H9V5H7z"></path></svg>
-                                             </button>
-                                        </div>
-                                        <span className="text-sm text-spotify-grey w-12 text-right tabular-nums">{track.duration}</span>
-                                     </div>
+                     <div className={!topResult || yearFilter || genreFilter ? "lg:col-span-5" : "lg:col-span-3"}>
+                         <div className="flex items-center justify-between mb-4">
+                             <h2 className="text-2xl font-bold">Songs</h2>
+                             <button 
+                                onClick={() => setShowFilters(!showFilters)}
+                                className={`flex items-center gap-2 text-sm font-bold transition-colors ${showFilters ? 'text-spotify-green' : 'text-spotify-grey hover:text-white'}`}
+                             >
+                                 <FilterIcon />
+                                 Filter
+                             </button>
+                         </div>
+
+                         {/* Filter Bar */}
+                         {showFilters && (
+                             <div className="flex gap-4 mb-6 bg-[#181818] p-4 rounded-md">
+                                 <div className="flex flex-col gap-1">
+                                     <label className="text-xs font-bold text-spotify-grey uppercase">Year</label>
+                                     <input 
+                                        type="number" 
+                                        placeholder="YYYY" 
+                                        value={yearFilter}
+                                        onChange={(e) => setYearFilter(e.target.value)}
+                                        className="bg-[#2a2a2a] text-white text-sm rounded px-3 py-2 border border-transparent focus:border-spotify-grey focus:outline-none w-24"
+                                     />
                                  </div>
-                             ))}
+                                 <div className="flex flex-col gap-1">
+                                     <label className="text-xs font-bold text-spotify-grey uppercase">Genre</label>
+                                     <input 
+                                        type="text" 
+                                        placeholder="Pop, Rock..." 
+                                        value={genreFilter}
+                                        onChange={(e) => setGenreFilter(e.target.value)}
+                                        className="bg-[#2a2a2a] text-white text-sm rounded px-3 py-2 border border-transparent focus:border-spotify-grey focus:outline-none w-40"
+                                     />
+                                 </div>
+                                 {(yearFilter || genreFilter) && (
+                                     <button 
+                                        onClick={() => { setYearFilter(''); setGenreFilter(''); }}
+                                        className="self-end mb-1 text-xs font-bold text-spotify-grey hover:text-white"
+                                     >
+                                         Clear
+                                     </button>
+                                 )}
+                             </div>
+                         )}
+
+                         <div className="flex flex-col">
+                             {filteredResults.length === 0 && (yearFilter || genreFilter) ? (
+                                 <div className="text-spotify-grey py-4">No songs found matching filters.</div>
+                             ) : (
+                                filteredResults.map((track) => (
+                                    <div 
+                                        key={track.id} 
+                                        className="flex items-center justify-between p-2 rounded hover:bg-[#2a2a2a] group transition-colors cursor-pointer h-14"
+                                        onClick={(e) => { e.stopPropagation(); navigate(`/track/${track.id}`); }}
+                                    >
+                                        <div className="flex items-center gap-4 flex-1 overflow-hidden">
+                                            <div className="relative w-10 h-10 min-w-[40px]" onClick={(e) => handlePlay(e, track)}>
+                                                <img src={track.coverUrl} alt={track.title} className="w-10 h-10 rounded object-cover group-hover:opacity-50 transition-opacity" />
+                                                <div className="absolute inset-0 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    {currentTrack?.id === track.id && isPlaying ? (
+                                                        <svg height="16" width="16" viewBox="0 0 16 16" fill="currentColor"><path d="M2.7 1a.7.7 0 0 0-.7.7v12.6a.7.7 0 0 0 .7.7h2.6a.7.7 0 0 0 .7-.7V1.7a.7.7 0 0 0-.7-.7H2.7zm8 0a.7.7 0 0 0-.7.7v12.6a.7.7 0 0 0 .7.7h2.6a.7.7 0 0 0 .7-.7V1.7a.7.7 0 0 0-.7-.7h-2.6z"></path></svg>
+                                                    ) : (
+                                                        <PlayIcon />
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="flex flex-col overflow-hidden justify-center">
+                                                <div className={`text-base font-normal truncate mb-0.5 ${currentTrack?.id === track.id ? 'text-spotify-green' : 'text-white'}`}>{track.title}</div>
+                                                <div className="flex items-center gap-2">
+                                                    <Link 
+                                                        to={`/artist/${track.artistId}`}
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        className="text-sm text-spotify-grey truncate hover:underline group-hover:text-white transition-colors"
+                                                    >
+                                                        {track.artist}
+                                                    </Link>
+                                                    {track.releaseYear && (
+                                                        <>
+                                                             <span className="text-xs text-[#555]">•</span>
+                                                             <span className="text-xs text-spotify-grey">{track.releaseYear}</span>
+                                                        </>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-4 hidden sm:flex">
+                                            <button 
+                                                onClick={(e) => handleAddToQueue(e, track)}
+                                                className="text-spotify-grey hover:text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2"
+                                                title="Add to queue"
+                                            >
+                                                <AddToQueueIcon />
+                                            </button>
+                                            <div className="w-6 flex justify-center">
+                                                <button className="text-spotify-grey hover:text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <svg role="img" height="16" width="16" aria-hidden="true" viewBox="0 0 16 16" fill="currentColor"><path d="M1.69 2H14.5v12H1.69V2zm11.81 11V3H2.5v10h11zM7 5v3H5v2h2v3h2v-3h2V8H9V5H7z"></path></svg>
+                                                </button>
+                                            </div>
+                                            <span className="text-sm text-spotify-grey w-12 text-right tabular-nums">{track.duration}</span>
+                                        </div>
+                                    </div>
+                                ))
+                             )}
                          </div>
                     </div>
                 </div>
