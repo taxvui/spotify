@@ -1,13 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import { Card } from './Card';
-import { getGeminiGreeting } from '../services/geminiService';
 import { getFeaturedPlaylists, getNewReleases, getCategoryPlaylists } from '../services/spotifyService';
 import { Playlist } from '../types';
 
 const CHIPS = ['All', 'Music', 'Podcasts'];
 
+const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good morning';
+    if (hour < 18) return 'Good afternoon';
+    return 'Good evening';
+};
+
 export const Home = () => {
-    const [greeting, setGreeting] = useState("Good morning");
+    const [greeting, setGreeting] = useState(getGreeting());
     const [featured, setFeatured] = useState<Playlist[]>([]);
     const [newReleases, setNewReleases] = useState<Playlist[]>([]);
     const [activeChip, setActiveChip] = useState('All');
@@ -20,7 +26,9 @@ export const Home = () => {
                 // Determine what to fetch based on active chip
                 let feat: Playlist[] = [];
                 let rel: Playlist[] = [];
-                let greet = await getGeminiGreeting();
+                
+                // Update greeting based on current time
+                setGreeting(getGreeting());
 
                 if (activeChip === 'All') {
                      [feat, rel] = await Promise.all([
@@ -38,7 +46,6 @@ export const Home = () => {
                     rel = []; 
                 }
 
-                setGreeting(greet);
                 setFeatured(feat);
                 setNewReleases(rel);
             } catch (e) {

@@ -20,16 +20,18 @@ export const ArtistPage = () => {
     useEffect(() => {
         if (!id) return;
         setLoading(true);
+        
         Promise.all([
             getArtist(id),
             getArtistTopTracks(id),
             getArtistAlbums(id)
-        ]).then(([artistData, tracksData, albumsData]) => {
+        ]).then(async ([artistData, tracksData, albumsData]) => {
             setArtist(artistData);
             setTopTracks(tracksData);
             // Filter out duplicate albums by name for cleaner display
             const uniqueAlbums = albumsData.filter((v,i,a)=>a.findIndex(t=>(t.name === v.name))===i);
             setAlbums(uniqueAlbums);
+            
             setLoading(false);
         });
     }, [id]);
@@ -41,19 +43,40 @@ export const ArtistPage = () => {
         <div className="flex flex-col text-white pb-8">
             {/* Hero Header */}
             <div 
-                className="h-[40vh] min-h-[300px] flex flex-col justify-end p-8 bg-cover bg-center relative"
+                className="h-[50vh] min-h-[400px] flex flex-col justify-end p-8 bg-cover bg-center relative"
                 style={{ backgroundImage: `url(${artist.images[0]?.url})` }}
             >
-                <div className="absolute inset-0 bg-gradient-to-t from-[#121212] via-transparent to-black/30"></div>
-                <div className="relative z-10">
+                <div className="absolute inset-0 bg-gradient-to-t from-[#121212] via-black/40 to-transparent"></div>
+                <div className="relative z-10 max-w-5xl">
                     <div className="flex items-center gap-2 mb-2">
                          <span className="bg-[#3d91f4] text-white px-2 py-1 text-sm font-bold rounded-full flex items-center gap-1">
                             <svg role="img" height="16" width="16" aria-hidden="true" viewBox="0 0 16 16" fill="white"><path d="M8.7 1.346a13.36 13.36 0 0 0-1.4 0 13.36 13.36 0 0 0 0 13.308c.45.068.91.104 1.373.104 4.885 0 8.846-3.023 8.846-6.754 0-3.73-3.96-6.754-8.82-6.658zM7.3 1.346a13.36 13.36 0 0 1 1.4 0 13.36 13.36 0 0 1 0 13.308c-.45.068-.91.104-1.373.104-4.885 0-8.846-3.023-8.846-6.754 0-3.73 3.96-6.754 8.82-6.658z"></path></svg>
                             Verified Artist
                          </span>
                     </div>
-                    <h1 className="text-5xl md:text-8xl font-bold mb-6 tracking-tighter shadow-black drop-shadow-lg">{artist.name}</h1>
-                    <p className="text-base font-normal mb-2 drop-shadow-md">{artist.followers.total.toLocaleString()} monthly listeners</p>
+                    <h1 className="text-5xl md:text-8xl font-bold mb-4 tracking-tighter shadow-black drop-shadow-lg">{artist.name}</h1>
+                    <p className="text-base font-normal mb-4 drop-shadow-md">{artist.followers.total.toLocaleString()} followers</p>
+                    
+                    {/* Genres */}
+                    <div className="flex flex-wrap gap-2 mb-4">
+                        {artist.genres.map(genre => (
+                            <span key={genre} className="px-3 py-1 bg-white/20 backdrop-blur-md rounded-full text-xs font-bold capitalize border border-white/10 shadow-sm">
+                                {genre}
+                            </span>
+                        ))}
+                    </div>
+
+                    {/* Popularity Score */}
+                    <div className="flex items-center gap-3 text-sm font-bold drop-shadow-md">
+                        <span className="opacity-90">Popularity</span>
+                        <div className="w-32 h-2 bg-white/30 rounded-full overflow-hidden backdrop-blur-sm border border-white/10">
+                            <div 
+                                className="h-full bg-white rounded-full shadow-[0_0_10px_rgba(255,255,255,0.5)]" 
+                                style={{ width: `${artist.popularity}%` }}
+                            />
+                        </div>
+                        <span className="opacity-90">{artist.popularity}%</span>
+                    </div>
                 </div>
             </div>
 
@@ -114,7 +137,7 @@ export const ArtistPage = () => {
             </div>
 
             {/* Discography */}
-            <div className="px-8 mt-8">
+            <div className="px-8 mt-10">
                 <h2 className="text-2xl font-bold mb-4">Discography</h2>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
                     {albums.map(album => (
