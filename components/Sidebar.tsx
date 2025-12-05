@@ -1,13 +1,13 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { MOCK_PLAYLISTS } from '../constants';
+import { getFeaturedPlaylists } from '../services/spotifyService';
+import { Playlist } from '../types';
 
 // Icons as simple SVGs
 const HomeIcon = ({ active }: { active: boolean }) => (
   <svg role="img" height="24" width="24" aria-hidden="true" viewBox="0 0 24 24" fill={active ? "white" : "#b3b3b3"} className={active ? "" : "hover:fill-white transition-colors"}>
     <path d="M12.5 3.247a1 1 0 0 0-1 0L4 8.747V20.5a1 1 0 0 0 1 1h4.5a1 1 0 0 0 1-1v-5h3v5a1 1 0 0 0 1 1h4.5a1 1 0 0 0 1-1V8.747l-7.5-5.5Zm-8 17V9.017l7.5-5.5 7.5 5.5V20.25h-3.5v-6a1 1 0 0 0-1-1h-5a1 1 0 0 0-1 1v6h-3.5Z"></path>
     {active && <path d="M11.5 13.25h-3.5v6H4V9.017l8-5.866 8 5.866V19.25h-4v-6h-3.5v6H11.5v-6Z" fill="white"></path>} 
-    {/* Simplified for "active" state visuals, actually Spotify fills it. */}
     <path d={active ? "M12.5 3.247a1 1 0 0 0-1 0L4 8.747V20.5a1 1 0 0 0 1 1h4.5a1 1 0 0 0 1-1v-5h3v5a1 1 0 0 0 1 1h4.5a1 1 0 0 0 1-1V8.747l-7.5-5.5Z" : ""} fill={active ? "white" : "none"}></path>
   </svg>
 );
@@ -40,6 +40,12 @@ export const Sidebar = () => {
   const location = useLocation();
   const isHome = location.pathname === '/';
   const isSearch = location.pathname === '/search';
+  const [playlists, setPlaylists] = useState<Playlist[]>([]);
+
+  useEffect(() => {
+    // Fetch some playlists to populate the sidebar "Library"
+    getFeaturedPlaylists().then(data => setPlaylists(data.slice(0, 15)));
+  }, []);
 
   return (
     <nav className="w-64 bg-black flex flex-col h-full gap-2 p-2 hidden md:flex">
@@ -74,12 +80,12 @@ export const Sidebar = () => {
         
         <div className="flex-1 overflow-y-auto px-2">
             <div className="flex flex-col">
-                {MOCK_PLAYLISTS.map((playlist) => (
+                {playlists.map((playlist) => (
                     <div key={playlist.id} className="flex items-center gap-3 p-2 rounded-md hover:bg-[#1a1a1a] cursor-pointer group">
-                        <img src={playlist.coverUrl} alt={playlist.name} className="w-12 h-12 rounded bg-[#333] shadow-md" />
-                        <div className="flex flex-col">
+                        <img src={playlist.coverUrl} alt={playlist.name} className="w-12 h-12 rounded bg-[#333] shadow-md object-cover" />
+                        <div className="flex flex-col overflow-hidden">
                             <span className="text-white font-medium truncate w-32">{playlist.name}</span>
-                            <span className="text-spotify-grey text-xs truncate w-32 group-hover:text-white">Playlist • Gemini User</span>
+                            <span className="text-spotify-grey text-xs truncate w-32 group-hover:text-white">Playlist • Spotify</span>
                         </div>
                     </div>
                 ))}

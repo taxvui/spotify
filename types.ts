@@ -5,6 +5,7 @@ export interface Track {
   album: string;
   duration: string; // e.g., "3:45"
   coverUrl: string;
+  previewUrl?: string | null;
 }
 
 export interface Playlist {

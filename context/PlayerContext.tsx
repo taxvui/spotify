@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useRef, useEffect } from 'react';
 import { Track } from '../types';
 
 interface PlayerContextType {
@@ -15,10 +15,57 @@ const PlayerContext = createContext<PlayerContextType | undefined>(undefined);
 export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  // Initialize audio object
+  useEffect(() => {
+    if (!audioRef.current) {
+        audioRef.current = new Audio();
+        audioRef.current.onended = () => setIsPlaying(false);
+        // Lower volume slightly by default
+        audioRef.current.volume = 0.5;
+    }
+  }, []);
+
+  // Handle track changes
+  useEffect(() => {
+    if (currentTrack && audioRef.current) {
+        // Stop current audio
+        audioRef.current.pause();
+
+        if (currentTrack.previewUrl) {
+            audioRef.current.src = currentTrack.previewUrl;
+            if (isPlaying) {
+                audioRef.current.play().catch(e => console.error("Playback failed", e));
+            }
+        } else {
+             // No preview available, we can still show the player but can't play audio
+             console.log("No preview URL for track:", currentTrack.title);
+             audioRef.current.src = "";
+             // Optional: reset playing state if you don't want to show "playing" UI for silent tracks
+             // setIsPlaying(false); 
+        }
+    }
+  }, [currentTrack]);
+
+  // Handle play/pause toggle
+  useEffect(() => {
+    if(audioRef.current && audioRef.current.src) {
+        if(isPlaying) {
+             audioRef.current.play().catch(e => console.error("Play error", e));
+        } else {
+            audioRef.current.pause();
+        }
+    }
+  }, [isPlaying]);
 
   const playTrack = (track: Track) => {
-    setCurrentTrack(track);
-    setIsPlaying(true);
+    if (currentTrack?.id === track.id) {
+        togglePlay();
+    } else {
+        setCurrentTrack(track);
+        setIsPlaying(true);
+    }
   };
 
   const togglePlay = () => {
