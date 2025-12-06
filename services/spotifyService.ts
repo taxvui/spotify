@@ -105,7 +105,8 @@ const mapTrack = (item: any): Track => {
       coverUrl: track.album?.images[0]?.url || 'https://via.placeholder.com/300',
       previewUrl: track.preview_url,
       addedAt: item.added_at ? new Date(item.added_at).toLocaleDateString() : undefined,
-      releaseYear: track.album?.release_date?.split('-')[0]
+      releaseYear: track.album?.release_date?.split('-')[0],
+      genre: '' // Search endpoint doesn't return genres for tracks usually
     };
 };
 
@@ -127,6 +128,15 @@ const mapAlbum = (item: any): Playlist => ({
     tracks: [],
     type: 'album'
   });
+
+const mapArtist = (item: any): ArtistFull => ({
+    id: item.id,
+    name: item.name,
+    images: item.images || [],
+    followers: { total: item.followers?.total || 0 },
+    genres: item.genres || [],
+    popularity: item.popularity || 0
+});
 
 export const getCurrentUserProfile = async (): Promise<UserProfile | null> => {
     if (!userAccessToken) return null;
@@ -164,6 +174,33 @@ export const searchTracks = async (query: string): Promise<Track[]> => {
     return MOCK_TRACKS;
   }
 };
+
+export const searchContent = async (query: string) => {
+    const token = await getAccessToken();
+    const emptyResult = { tracks: [], artists: [], albums: [], playlists: [] };
+    
+    if (!token) return {
+        tracks: MOCK_TRACKS.filter(t => t.title.toLowerCase().includes(query.toLowerCase())),
+        artists: MOCK_ARTISTS.filter(a => a.name.toLowerCase().includes(query.toLowerCase())),
+        albums: MOCK_ALBUMS.filter(a => a.name.toLowerCase().includes(query.toLowerCase())),
+        playlists: MOCK_CHARTS.filter(p => p.name.toLowerCase().includes(query.toLowerCase()))
+    };
+
+    try {
+        const response = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=album,artist,playlist,track&limit=10&market=VN`, {
+            headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await response.json();
+        return {
+            tracks: data.tracks?.items?.map(mapTrack) || [],
+            artists: data.artists?.items?.map(mapArtist) || [],
+            albums: data.albums?.items?.map(mapAlbum) || [],
+            playlists: data.playlists?.items?.map(mapPlaylist) || []
+        };
+    } catch (error) {
+        return emptyResult;
+    }
+}
 
 export const getNewReleases = async (): Promise<Playlist[]> => {
   const token = await getAccessToken();

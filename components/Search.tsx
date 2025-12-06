@@ -1,9 +1,10 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { usePlayer } from '../context/PlayerContext';
-import { searchTracks, getCategories } from '../services/spotifyService';
-import { Track } from '../types';
+import { searchContent, getCategories, searchTracks } from '../services/spotifyService';
+import { Track, Playlist, ArtistFull } from '../types';
+import { Card } from './Card';
 
 const PlayIcon = () => (
     <svg role="img" height="12" width="12" aria-hidden="true" viewBox="0 0 16 16" fill="currentColor">
@@ -17,15 +18,22 @@ const AddToQueueIcon = () => (
     </svg>
 )
 
-const FilterIcon = () => (
-    <svg role="img" height="16" width="16" aria-hidden="true" viewBox="0 0 16 16" fill="currentColor">
-        <path d="M15 2.5H1v-1h14v1zM2.5 8h11v-1h-11v1zM11.5 13.5h-7v-1h7v1z"></path>
-    </svg>
-)
+const ClockIcon = () => (
+    <svg role="img" height="16" width="16" aria-hidden="true" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13zM0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8zM7 6.5C7 8.378 7.63 10 8.5 10c.87 0 1.5-1.622 1.5-3.5S9.37 3 8.5 3c-.87 0-1.5 1.622-1.5 3.5zm8.5 0c0 2.505-2.753 4.67-6.5 4.96C8.63 9.49 8.13 8.04 8.13 6.5c0-1.54.5-2.99.87-4.96 3.747.29 6.5 2.455 6.5 4.96zM7.5 11.46c-3.747-.29-6.5-2.455-6.5-4.96 0-2.505 2.753-4.67 6.5-4.96.37 1.97.87 3.42.87 4.96 0 1.54-.5 2.99-.87 4.96z"></path></svg>
+);
+
+type SearchType = 'all' | 'tracks' | 'artists' | 'playlists' | 'albums';
+
+interface SearchData {
+    tracks: Track[];
+    artists: ArtistFull[];
+    playlists: Playlist[];
+    albums: Playlist[];
+}
 
 export const Search = () => {
     const [query, setQuery] = useState('');
-    const [results, setResults] = useState<Track[]>([]);
+    const [searchData, setSearchData] = useState<SearchData>({ tracks: [], artists: [], playlists: [], albums: [] });
     const [categories, setCategories] = useState<{id: string, name: string, icon: string}[]>([]);
     const [loading, setLoading] = useState(false);
     const [debouncedQuery, setDebouncedQuery] = useState('');
@@ -34,11 +42,8 @@ export const Search = () => {
     const [suggestions, setSuggestions] = useState<Track[]>([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
     
-    // Filter state
-    const [showFilters, setShowFilters] = useState(false);
-    const [yearFilter, setYearFilter] = useState('');
-    const [decadeFilter, setDecadeFilter] = useState('');
-    const [genreFilter, setGenreFilter] = useState('');
+    // Active Filter State
+    const [activeFilter, setActiveFilter] = useState<SearchType>('all');
 
     const { playTrack, currentTrack, isPlaying, addToQueue } = usePlayer();
     const navigate = useNavigate();
@@ -59,14 +64,14 @@ export const Search = () => {
     // Fetch Main Results
     useEffect(() => {
         if (!debouncedQuery) {
-            setResults([]);
+            setSearchData({ tracks: [], artists: [], playlists: [], albums: [] });
             return;
         }
 
         const fetchData = async () => {
             setLoading(true);
-            const tracks = await searchTracks(debouncedQuery);
-            setResults(tracks);
+            const data = await searchContent(debouncedQuery);
+            setSearchData(data);
             setLoading(false);
         };
         fetchData();
@@ -81,6 +86,7 @@ export const Search = () => {
 
         let active = true;
         const fetchSuggestions = async () => {
+            // Just fetching tracks for suggestions dropdown is usually enough
             const tracks = await searchTracks(query);
             if (active) {
                 setSuggestions(tracks.slice(0, 5));
@@ -117,42 +123,35 @@ export const Search = () => {
         setShowSuggestions(false);
     };
 
-    const filteredResults = results.filter(track => {
-        let matchesYear = true;
-        let matchesGenre = true;
-        let matchesDecade = true;
+    const hasResults = searchData.tracks.length > 0 || searchData.artists.length > 0 || searchData.albums.length > 0 || searchData.playlists.length > 0;
 
-        if (yearFilter) {
-            matchesYear = track.releaseYear === yearFilter;
-        }
-
-        if (decadeFilter && track.releaseYear) {
-            const year = parseInt(track.releaseYear);
-            const decadeStart = parseInt(decadeFilter);
-            if (!isNaN(year) && !isNaN(decadeStart)) {
-                matchesDecade = year >= decadeStart && year < decadeStart + 10;
-            }
-        }
-
-        if (genreFilter) {
-            matchesGenre = track.genre ? track.genre.toLowerCase().includes(genreFilter.toLowerCase()) : false;
-        }
-
-        return matchesYear && matchesGenre && matchesDecade;
-    });
-
-    const topResult = filteredResults[0];
+    // determine Top Result (simulated logic: prefer artist if exact match, otherwise top track)
+    let topResultType: 'artist' | 'track' = 'track';
+    let topResultData: any = searchData.tracks[0];
     
-    // If we have a top result and no filters, we show a simplified "Overview" list (Top Result + 4 Songs)
-    // Otherwise, we show the full list.
-    const isOverviewMode = topResult && !yearFilter && !genreFilter && !decadeFilter;
-    
-    const listResults = isOverviewMode 
-        ? filteredResults.filter(t => t.id !== topResult.id).slice(0, 4) 
-        : filteredResults;
+    if (searchData.artists.length > 0) {
+        // If query closely matches an artist name, promote it
+        // For simplicity, we just check if we have artist results and maybe prefer them
+        // In a real app, Spotify returns a specific 'top_result' field.
+        // Here we'll default to the first artist if available, else first track.
+         if (searchData.artists[0] && searchData.artists[0].name.toLowerCase().includes(debouncedQuery.toLowerCase())) {
+             topResultType = 'artist';
+             topResultData = searchData.artists[0];
+         }
+    }
+
+    const FilterChip = ({ label, type }: { label: string, type: SearchType }) => (
+        <button
+            onClick={() => setActiveFilter(type)}
+            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${activeFilter === type ? 'bg-white text-black' : 'bg-[#2a2a2a] text-white hover:bg-[#333]'}`}
+        >
+            {label}
+        </button>
+    );
 
     return (
         <div className="p-6 pt-6">
+            {/* Search Input */}
             <div className="mb-6 relative max-w-[400px] z-50">
                 <input 
                     type="text" 
@@ -196,174 +195,285 @@ export const Search = () => {
                 </div>
             )}
 
-            {!loading && results.length > 0 && (
-                <div className="mb-8 grid grid-cols-1 lg:grid-cols-5 gap-6">
-                    {/* Top Result Section - Only show if overview mode */}
-                    {isOverviewMode && (
-                         <div className="lg:col-span-2">
-                            <h2 className="text-2xl font-bold mb-4">Top result</h2>
-                            <div 
-                                className="bg-[#181818] hover:bg-[#282828] p-5 rounded-lg transition-colors group relative cursor-pointer h-64 flex flex-col justify-center gap-4"
-                                onClick={(e) => { e.stopPropagation(); navigate(`/track/${topResult.id}`); }}
-                            >
-                                <img src={topResult.coverUrl} alt={topResult.title} className="w-32 h-32 rounded shadow-[0_8px_24px_rgba(0,0,0,0.5)] object-cover mb-2" />
-                                
-                                <div>
-                                    <div className="text-3xl font-bold text-white mb-1 line-clamp-2 pb-1 tracking-tight">{topResult.title}</div>
-                                    <div className="text-sm font-semibold text-spotify-grey flex items-center gap-2">
-                                        <span className="text-white bg-[#121212] rounded-full px-3 py-1 text-xs uppercase tracking-wider">Song</span>
-                                        <Link 
-                                            to={`/artist/${topResult.artistId}`}
-                                            onClick={(e) => e.stopPropagation()}
-                                            className="line-clamp-1 hover:text-white hover:underline font-bold text-white"
+            {!loading && hasResults && (
+                <>
+                    {/* Filter Chips */}
+                    <div className="flex gap-2 mb-6">
+                        <FilterChip label="All" type="all" />
+                        <FilterChip label="Artists" type="artists" />
+                        <FilterChip label="Songs" type="tracks" />
+                        <FilterChip label="Playlists" type="playlists" />
+                        <FilterChip label="Albums" type="albums" />
+                    </div>
+
+                    {/* All View */}
+                    {activeFilter === 'all' && (
+                        <div className="flex flex-col gap-8">
+                            <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+                                {/* Top Result */}
+                                {topResultData && (
+                                    <div className="lg:col-span-2">
+                                        <h2 className="text-2xl font-bold mb-4">Top result</h2>
+                                        <div 
+                                            className="bg-[#181818] hover:bg-[#282828] p-5 rounded-lg transition-colors group relative cursor-pointer h-60 flex flex-col justify-center gap-4"
+                                            onClick={(e) => { 
+                                                e.stopPropagation(); 
+                                                navigate(topResultType === 'artist' ? `/artist/${topResultData.id}` : `/track/${topResultData.id}`); 
+                                            }}
                                         >
-                                            {topResult.artist}
-                                        </Link>
-                                    </div>
-                                </div>
-                                
-                                {/* Large Play Button */}
-                                <div onClick={(e) => handlePlay(e, topResult)} className="absolute bottom-5 right-5 opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-300 shadow-xl z-10">
-                                    <div className="w-12 h-12 bg-spotify-green rounded-full flex items-center justify-center text-black hover:scale-105 transition-transform hover:bg-[#1fdf64]">
-                                        {currentTrack?.id === topResult.id && isPlaying ? (
-                                        <svg height="20" width="20" viewBox="0 0 24 24" fill="currentColor"><path d="M5.7 3a.7.7 0 0 0-.7.7v16.6a.7.7 0 0 0 .7.7h2.6a.7.7 0 0 0 .7-.7V3.7a.7.7 0 0 0-.7-.7H5.7zm10 0a.7.7 0 0 0-.7.7v16.6a.7.7 0 0 0 .7.7h2.6a.7.7 0 0 0 .7-.7V3.7a.7.7 0 0 0-.7-.7h-2.6z"></path></svg>
-                                        ) : (
-                                        <svg height="20" width="20" viewBox="0 0 24 24" fill="currentColor"><path d="m7.05 3.606 13.49 7.788a.7.7 0 0 1 0 1.212L7.05 20.394A.7.7 0 0 1 6 19.788V4.212a.7.7 0 0 1 1.05-.606z"></path></svg>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Songs List Section */}
-                     <div className={!isOverviewMode ? "lg:col-span-5" : "lg:col-span-3"}>
-                         <div className="flex items-center justify-between mb-4">
-                             <h2 className="text-2xl font-bold">Songs</h2>
-                             <button 
-                                onClick={() => setShowFilters(!showFilters)}
-                                className={`flex items-center gap-2 text-sm font-bold transition-colors ${showFilters ? 'text-spotify-green' : 'text-spotify-grey hover:text-white'}`}
-                             >
-                                 <FilterIcon />
-                                 Filter
-                             </button>
-                         </div>
-
-                         {/* Filter Bar */}
-                         {showFilters && (
-                             <div className="flex gap-4 mb-6 bg-spotify-card p-4 rounded-md flex-wrap">
-                                 <div className="flex flex-col gap-1">
-                                     <label className="text-xs font-bold text-spotify-grey uppercase">Decade</label>
-                                     <select 
-                                        value={decadeFilter}
-                                        onChange={(e) => setDecadeFilter(e.target.value)}
-                                        className="bg-spotify-highlight text-white text-sm rounded px-3 py-2 border border-transparent focus:border-spotify-grey focus:outline-none w-32 cursor-pointer h-[38px]"
-                                     >
-                                        <option value="">All</option>
-                                        <option value="2020">2020s</option>
-                                        <option value="2010">2010s</option>
-                                        <option value="2000">2000s</option>
-                                        <option value="1990">1990s</option>
-                                        <option value="1980">1980s</option>
-                                        <option value="1970">1970s</option>
-                                        <option value="1960">1960s</option>
-                                     </select>
-                                 </div>
-                                 <div className="flex flex-col gap-1">
-                                     <label className="text-xs font-bold text-spotify-grey uppercase">Year</label>
-                                     <input 
-                                        type="number" 
-                                        placeholder="YYYY" 
-                                        value={yearFilter}
-                                        onChange={(e) => setYearFilter(e.target.value)}
-                                        className="bg-spotify-highlight text-white text-sm rounded px-3 py-2 border border-transparent focus:border-spotify-grey focus:outline-none w-24 h-[38px]"
-                                     />
-                                 </div>
-                                 <div className="flex flex-col gap-1">
-                                     <label className="text-xs font-bold text-spotify-grey uppercase">Genre</label>
-                                     <input 
-                                        type="text" 
-                                        placeholder="Pop, Rock..." 
-                                        value={genreFilter}
-                                        onChange={(e) => setGenreFilter(e.target.value)}
-                                        className="bg-spotify-highlight text-white text-sm rounded px-3 py-2 border border-transparent focus:border-spotify-grey focus:outline-none w-40 h-[38px]"
-                                     />
-                                 </div>
-                                 {(yearFilter || genreFilter || decadeFilter) && (
-                                     <button 
-                                        onClick={() => { setYearFilter(''); setGenreFilter(''); setDecadeFilter(''); }}
-                                        className="self-end mb-2 text-xs font-bold text-spotify-grey hover:text-white"
-                                     >
-                                         Clear
-                                     </button>
-                                 )}
-                             </div>
-                         )}
-
-                         <div className="flex flex-col">
-                             {listResults.length === 0 ? (
-                                 <div className="text-spotify-grey py-4">No songs found matching filters.</div>
-                             ) : (
-                                listResults.map((track) => (
-                                    <div 
-                                        key={track.id} 
-                                        className="flex items-center justify-between p-2 rounded hover:bg-[#2a2a2a] group transition-colors cursor-pointer h-14"
-                                        onClick={(e) => { e.stopPropagation(); navigate(`/track/${track.id}`); }}
-                                    >
-                                        <div className="flex items-center gap-4 flex-1 overflow-hidden">
-                                            <div className="relative w-10 h-10 min-w-[40px]" onClick={(e) => handlePlay(e, track)}>
-                                                <img src={track.coverUrl} alt={track.title} className="w-10 h-10 rounded object-cover group-hover:opacity-50 transition-opacity" />
-                                                <div className="absolute inset-0 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    {currentTrack?.id === track.id && isPlaying ? (
-                                                        <svg height="16" width="16" viewBox="0 0 16 16" fill="currentColor"><path d="M2.7 1a.7.7 0 0 0-.7.7v12.6a.7.7 0 0 0 .7.7h2.6a.7.7 0 0 0 .7-.7V1.7a.7.7 0 0 0-.7-.7H2.7zm8 0a.7.7 0 0 0-.7.7v12.6a.7.7 0 0 0 .7.7h2.6a.7.7 0 0 0 .7-.7V1.7a.7.7 0 0 0-.7-.7h-2.6z"></path></svg>
-                                                    ) : (
-                                                        <PlayIcon />
-                                                    )}
+                                            <img 
+                                                src={topResultType === 'artist' ? topResultData.images?.[0]?.url : topResultData.coverUrl} 
+                                                alt={topResultType === 'artist' ? topResultData.name : topResultData.title} 
+                                                className={`w-24 h-24 shadow-[0_8px_24px_rgba(0,0,0,0.5)] object-cover mb-2 ${topResultType === 'artist' ? 'rounded-full' : 'rounded-md'}`}
+                                            />
+                                            
+                                            <div>
+                                                <div className="text-3xl font-bold text-white mb-1 line-clamp-1 pb-1 tracking-tight">
+                                                    {topResultType === 'artist' ? topResultData.name : topResultData.title}
                                                 </div>
-                                            </div>
-                                            <div className="flex flex-col overflow-hidden justify-center">
-                                                <div className={`text-base font-normal truncate mb-0.5 ${currentTrack?.id === track.id ? 'text-spotify-green' : 'text-white'}`}>{track.title}</div>
-                                                <div className="flex items-center gap-2">
-                                                    <Link 
-                                                        to={`/artist/${track.artistId}`}
-                                                        onClick={(e) => e.stopPropagation()}
-                                                        className="text-sm text-spotify-grey truncate hover:underline group-hover:text-white transition-colors"
-                                                    >
-                                                        {track.artist}
-                                                    </Link>
-                                                    {track.releaseYear && (
+                                                <div className="text-sm font-semibold text-spotify-grey flex items-center gap-2">
+                                                    {topResultType === 'artist' ? (
+                                                        <span className="text-white bg-[#121212] rounded-full px-3 py-1 text-xs uppercase tracking-wider">Artist</span>
+                                                    ) : (
                                                         <>
-                                                             <span className="text-xs text-[#555]">•</span>
-                                                             <span className="text-xs text-spotify-grey">{track.releaseYear}</span>
+                                                            <span className="text-white bg-[#121212] rounded-full px-3 py-1 text-xs uppercase tracking-wider">Song</span>
+                                                            <span className="text-white">{topResultData.artist}</span>
                                                         </>
                                                     )}
                                                 </div>
                                             </div>
-                                        </div>
-                                        <div className="flex items-center gap-4 hidden sm:flex">
-                                            <button 
-                                                onClick={(e) => handleAddToQueue(e, track)}
-                                                className="text-spotify-grey hover:text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2"
-                                                title="Add to queue"
-                                            >
-                                                <AddToQueueIcon />
-                                            </button>
-                                            <div className="w-6 flex justify-center">
-                                                <button className="text-spotify-grey hover:text-white opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <svg role="img" height="16" width="16" aria-hidden="true" viewBox="0 0 16 16" fill="currentColor"><path d="M1.69 2H14.5v12H1.69V2zm11.81 11V3H2.5v10h11zM7 5v3H5v2h2v3h2v-3h2V8H9V5H7z"></path></svg>
-                                                </button>
-                                            </div>
-                                            <span className="text-sm text-spotify-grey w-12 text-right tabular-nums">{track.duration}</span>
+                                            
+                                            {/* Play Button for Top Result */}
+                                            {topResultType === 'track' && (
+                                                <div onClick={(e) => handlePlay(e, topResultData)} className="absolute bottom-5 right-5 opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-300 shadow-xl z-10">
+                                                    <div className="w-12 h-12 bg-spotify-green rounded-full flex items-center justify-center text-black hover:scale-105 transition-transform hover:bg-[#1fdf64]">
+                                                        <svg role="img" height="20" width="20" aria-hidden="true" viewBox="0 0 16 16" fill="currentColor">
+                                                            <path d="M3 1.713a.7.7 0 0 1 1.05-.607l10.89 6.288a.7.7 0 0 1 0 1.212L4.05 14.894A.7.7 0 0 1 3 14.288V1.713z"></path>
+                                                        </svg>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
-                                ))
-                             )}
-                         </div>
-                    </div>
-                </div>
+                                )}
+
+                                {/* Songs List */}
+                                <div className="lg:col-span-3">
+                                    <h2 className="text-2xl font-bold mb-4">Songs</h2>
+                                    <div className="flex flex-col">
+                                        {searchData.tracks.slice(0, 4).map((track) => (
+                                            <div 
+                                                key={track.id} 
+                                                className="flex items-center justify-between p-2 rounded hover:bg-[#2a2a2a] group transition-colors cursor-pointer h-14"
+                                                onClick={(e) => { e.stopPropagation(); navigate(`/track/${track.id}`); }}
+                                            >
+                                                <div className="flex items-center gap-4 flex-1 overflow-hidden">
+                                                    <div className="relative w-10 h-10 min-w-[40px]" onClick={(e) => handlePlay(e, track)}>
+                                                        <img src={track.coverUrl} alt={track.title} className="w-10 h-10 rounded object-cover group-hover:opacity-50 transition-opacity" />
+                                                        <div className="absolute inset-0 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity">
+                                                            {currentTrack?.id === track.id && isPlaying ? (
+                                                                <svg height="16" width="16" viewBox="0 0 16 16" fill="currentColor"><path d="M2.7 1a.7.7 0 0 0-.7.7v12.6a.7.7 0 0 0 .7.7h2.6a.7.7 0 0 0 .7-.7V1.7a.7.7 0 0 0-.7-.7H2.7zm8 0a.7.7 0 0 0-.7.7v12.6a.7.7 0 0 0 .7.7h2.6a.7.7 0 0 0 .7-.7V1.7a.7.7 0 0 0-.7-.7h-2.6z"></path></svg>
+                                                            ) : (
+                                                                <PlayIcon />
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex flex-col overflow-hidden justify-center">
+                                                        <div className={`text-base font-normal truncate mb-0.5 ${currentTrack?.id === track.id ? 'text-spotify-green' : 'text-white'}`}>{track.title}</div>
+                                                        <div className="flex items-center gap-2">
+                                                            <Link 
+                                                                to={`/artist/${track.artistId}`}
+                                                                onClick={(e) => e.stopPropagation()}
+                                                                className="text-sm text-spotify-grey truncate hover:underline group-hover:text-white transition-colors"
+                                                            >
+                                                                {track.artist}
+                                                            </Link>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-4 hidden sm:flex">
+                                                    <button 
+                                                        onClick={(e) => handleAddToQueue(e, track)}
+                                                        className="text-spotify-grey hover:text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    >
+                                                        <AddToQueueIcon />
+                                                    </button>
+                                                    <span className="text-sm text-spotify-grey w-12 text-right tabular-nums">{track.duration}</span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Artists Section */}
+                            {searchData.artists.length > 0 && (
+                                <section>
+                                    <h2 className="text-2xl font-bold mb-4">Artists</h2>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                                        {searchData.artists.slice(0, 6).map(artist => (
+                                             <Card 
+                                                key={`artist-${artist.id}`}
+                                                id={artist.id}
+                                                image={artist.images[0]?.url || 'https://via.placeholder.com/300'}
+                                                title={artist.name}
+                                                description="Artist"
+                                                type="artist"
+                                            />
+                                        ))}
+                                    </div>
+                                </section>
+                            )}
+
+                            {/* Albums Section */}
+                            {searchData.albums.length > 0 && (
+                                <section>
+                                    <h2 className="text-2xl font-bold mb-4">Albums</h2>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                                        {searchData.albums.slice(0, 6).map(album => (
+                                             <Card 
+                                                key={`album-${album.id}`}
+                                                id={album.id}
+                                                image={album.coverUrl}
+                                                title={album.name}
+                                                description={album.description}
+                                                type="album"
+                                            />
+                                        ))}
+                                    </div>
+                                </section>
+                            )}
+
+                             {/* Playlists Section */}
+                             {searchData.playlists.length > 0 && (
+                                <section>
+                                    <h2 className="text-2xl font-bold mb-4">Playlists</h2>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                                        {searchData.playlists.slice(0, 6).map(playlist => (
+                                             <Card 
+                                                key={`playlist-${playlist.id}`}
+                                                id={playlist.id}
+                                                image={playlist.coverUrl}
+                                                title={playlist.name}
+                                                description={`By ${playlist.owner || 'Spotify'}`}
+                                                type="playlist"
+                                            />
+                                        ))}
+                                    </div>
+                                </section>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Tracks View */}
+                    {activeFilter === 'tracks' && (
+                        <div>
+                             <h2 className="text-2xl font-bold mb-4">Songs</h2>
+                             <div className="grid grid-cols-[16px_1fr_40px] md:grid-cols-[16px_1fr_1fr_60px] gap-4 text-spotify-grey text-sm border-b border-[#282828] pb-2 mb-4 px-4 uppercase font-normal">
+                                <span>#</span>
+                                <span>Title</span>
+                                <span className="hidden md:block">Album</span>
+                                <div className="flex justify-end"><ClockIcon /></div>
+                            </div>
+                            <div className="flex flex-col">
+                                {searchData.tracks.map((track, index) => (
+                                    <div 
+                                        key={track.id} 
+                                        className="grid grid-cols-[16px_1fr_40px] md:grid-cols-[16px_1fr_1fr_60px] gap-4 items-center px-4 py-2 hover:bg-[#2a2a2a] rounded group cursor-pointer text-sm text-spotify-grey hover:text-white transition-colors"
+                                        onClick={(e) => { e.stopPropagation(); navigate(`/track/${track.id}`); }}
+                                    >
+                                        <div className="flex justify-center items-center w-4">
+                                            <span className="text-base group-hover:hidden">{index + 1}</span>
+                                            <button 
+                                                className="hidden group-hover:flex text-white items-center justify-center bg-transparent border-none outline-none"
+                                                onClick={(e) => handlePlay(e, track)}
+                                            >
+                                                {currentTrack?.id === track.id && isPlaying ? (
+                                                     <svg height="16" width="16" viewBox="0 0 16 16" fill="currentColor"><path d="M2.7 1a.7.7 0 0 0-.7.7v12.6a.7.7 0 0 0 .7.7h2.6a.7.7 0 0 0 .7-.7V1.7a.7.7 0 0 0-.7-.7H2.7zm8 0a.7.7 0 0 0-.7.7v12.6a.7.7 0 0 0 .7.7h2.6a.7.7 0 0 0 .7-.7V1.7a.7.7 0 0 0-.7-.7h-2.6z"></path></svg>
+                                                ) : (
+                                                    <svg role="img" height="16" width="16" aria-hidden="true" viewBox="0 0 16 16" fill="currentColor">
+                                                        <path d="M3 1.713a.7.7 0 0 1 1.05-.607l10.89 6.288a.7.7 0 0 1 0 1.212L4.05 14.894A.7.7 0 0 1 3 14.288V1.713z"></path>
+                                                    </svg>
+                                                )}
+                                            </button>
+                                        </div>
+                                        
+                                        <div className="flex items-center gap-4 overflow-hidden">
+                                            <img src={track.coverUrl} className="w-10 h-10 rounded shadow-sm" alt="" />
+                                            <div className="flex flex-col overflow-hidden">
+                                                <span className={`truncate font-medium text-base ${currentTrack?.id === track.id ? 'text-spotify-green' : 'text-white'}`}>{track.title}</span>
+                                                <Link to={`/artist/${track.artistId}`} onClick={(e) => e.stopPropagation()} className="truncate text-sm hover:underline">{track.artist}</Link>
+                                            </div>
+                                        </div>
+                                        <span className="hidden md:block truncate hover:underline">{track.album}</span>
+                                        <span className="text-right tabular-nums">{track.duration}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Artists View */}
+                    {activeFilter === 'artists' && (
+                        <div>
+                             <h2 className="text-2xl font-bold mb-4">Artists</h2>
+                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                                {searchData.artists.map(artist => (
+                                     <Card 
+                                        key={`artist-${artist.id}`}
+                                        id={artist.id}
+                                        image={artist.images[0]?.url || 'https://via.placeholder.com/300'}
+                                        title={artist.name}
+                                        description="Artist"
+                                        type="artist"
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                     {/* Playlists View */}
+                     {activeFilter === 'playlists' && (
+                        <div>
+                             <h2 className="text-2xl font-bold mb-4">Playlists</h2>
+                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                                {searchData.playlists.map(playlist => (
+                                     <Card 
+                                        key={`playlist-${playlist.id}`}
+                                        id={playlist.id}
+                                        image={playlist.coverUrl}
+                                        title={playlist.name}
+                                        description={`By ${playlist.owner || 'Spotify'}`}
+                                        type="playlist"
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                     {/* Albums View */}
+                     {activeFilter === 'albums' && (
+                        <div>
+                             <h2 className="text-2xl font-bold mb-4">Albums</h2>
+                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                                {searchData.albums.map(album => (
+                                     <Card 
+                                        key={`album-${album.id}`}
+                                        id={album.id}
+                                        image={album.coverUrl}
+                                        title={album.name}
+                                        description={album.description}
+                                        type="album"
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                </>
             )}
 
-            {!loading && results.length === 0 && !query && (
+            {!loading && !hasResults && !query && (
                 <div>
                     <h2 className="text-2xl font-bold mb-4">Browse all</h2>
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 pb-8">
