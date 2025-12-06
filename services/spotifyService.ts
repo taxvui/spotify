@@ -12,7 +12,7 @@ let userAccessToken = '';
 let userTokenExpiration = 0;
 
 export const loginWithSpotify = () => {
-    const scope = 'user-read-private user-read-email playlist-read-private';
+    const scope = 'user-read-private user-read-email playlist-read-private playlist-read-collaborative';
     const authUrl = `https://accounts.spotify.com/authorize?client_id=${CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${encodeURIComponent(scope)}`;
     window.location.assign(authUrl);
 };
@@ -115,7 +115,8 @@ const mapPlaylist = (item: any): Playlist => ({
   description: item.description || '',
   coverUrl: item.images?.[0]?.url || 'https://via.placeholder.com/300',
   tracks: [],
-  type: 'playlist'
+  type: 'playlist',
+  owner: item.owner?.display_name
 });
 
 const mapAlbum = (item: any): Playlist => ({
@@ -136,6 +137,17 @@ export const getCurrentUserProfile = async (): Promise<UserProfile | null> => {
         if (!response.ok) return null;
         return await response.json();
     } catch (e) { return null; }
+}
+
+export const getUserPlaylists = async (): Promise<Playlist[]> => {
+    if (!userAccessToken) return [];
+    try {
+        const response = await fetch('https://api.spotify.com/v1/me/playlists?limit=20', {
+            headers: { Authorization: `Bearer ${userAccessToken}` }
+        });
+        const data = await response.json();
+        return data.items.map(mapPlaylist);
+    } catch (e) { return []; }
 }
 
 export const searchTracks = async (query: string): Promise<Track[]> => {

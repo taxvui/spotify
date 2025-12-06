@@ -1,3 +1,4 @@
+
 export interface Track {
   id: string;
   title: string;
@@ -20,6 +21,7 @@ export interface Playlist {
   coverUrl: string;
   tracks: Track[];
   type?: 'playlist' | 'album' | 'artist' | 'track';
+  owner?: string;
 }
 
 export interface PlaylistFull extends Playlist {

@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { loginWithSpotify, getCurrentUserProfile } from '../services/spotifyService';
@@ -26,6 +27,14 @@ const BrowseIcon = () => (
         <path d="M4 2a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H4zm-2 2a.5.5 0 0 1 .5-.5h15a.5.5 0 0 1 .5.5v15a.5.5 0 0 1-.5.5H4.5a.5.5 0 0 1-.5-.5V4z"></path>
         <path d="M16.5 7.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zm-6 0a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zm-6 0a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z"></path>
     </svg>
+)
+
+const InstallAppIcon = () => (
+    <svg role="img" height="16" width="16" aria-hidden="true" viewBox="0 0 16 16" fill="currentColor"><path d="M4.995 8.745a.75.75 0 0 1 1.06 0L7.25 9.939V2a.75.75 0 0 1 1.5 0v7.94l1.195-1.195a.75.75 0 1 1 1.06 1.06L8 12.813 4.995 9.805a.75.75 0 0 1 0-1.06z"></path><path d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8zm8-6.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13z"></path></svg>
+)
+
+const BellIcon = () => (
+    <svg role="img" height="16" width="16" aria-hidden="true" viewBox="0 0 16 16" fill="currentColor"><path d="M8 1.5A2.5 2.5 0 0 0 5.5 4v9.42a3 3 0 0 0 5 0V4a2.5 2.5 0 0 0-2.5-2.5zM4 4a4 4 0 0 1 8 0v8.618a1.5 1.5 0 0 1-2.31 1.266A1.5 1.5 0 0 1 8 13a1.5 1.5 0 0 1-1.69 2.884A1.5 1.5 0 0 1 4 12.618V4z"></path><path d="M10.957 12.822a3.002 3.002 0 0 0-2.072 1.346 3.002 3.002 0 0 0-2.071-1.346 3 3 0 0 1 .301-1.465l-.001-.002.321-.735A4.52 4.52 0 0 0 4 4a4 4 0 0 1 8 0 4.52 4.52 0 0 0-3.435 6.62l.32.735v.002a3 3 0 0 1 .302 1.465 2.992 2.992 0 0 0 1.77 0z"></path></svg>
 )
 
 export const TopBar = () => {
@@ -91,12 +100,20 @@ export const TopBar = () => {
             </div>
 
             {/* Right Side Navigation */}
-            <div className="flex items-center justify-end gap-4 w-[140px] md:w-[240px]">
+            <div className="flex items-center justify-end gap-2 w-[140px] md:w-[240px]">
                 {user ? (
-                    <div className="flex items-center gap-2 cursor-pointer hover:bg-[#282828] p-1 pr-3 rounded-full transition-colors">
-                            <img src={user.images?.[0]?.url || 'https://via.placeholder.com/32'} className="w-8 h-8 rounded-full" alt="Profile" />
-                            <span className="text-sm font-bold hidden sm:block">{user.display_name}</span>
-                    </div>
+                    <>
+                        <button className="hidden sm:flex items-center gap-1.5 bg-black text-white px-3 py-1.5 rounded-full hover:scale-105 transition-transform text-sm font-bold mr-2">
+                             <InstallAppIcon />
+                             <span>Install App</span>
+                        </button>
+                        <button className="w-8 h-8 flex items-center justify-center rounded-full bg-[#000] text-[#b3b3b3] hover:text-white hover:bg-[#1f1f1f] transition-colors">
+                             <BellIcon />
+                        </button>
+                        <div className="w-8 h-8 rounded-full bg-[#282828] p-[2px] cursor-pointer hover:scale-105 transition-transform">
+                             <img src={user.images?.[0]?.url || 'https://via.placeholder.com/32'} className="w-full h-full rounded-full object-cover" alt="Profile" />
+                        </div>
+                    </>
                 ) : (
                     <>
                         <button className="text-[#a7a7a7] hover:text-white font-bold text-base hover:scale-105 transition-transform tracking-wide whitespace-nowrap">

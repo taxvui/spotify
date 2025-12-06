@@ -204,9 +204,9 @@ export const Search = () => {
                             <h2 className="text-2xl font-bold mb-4">Top result</h2>
                             <div 
                                 className="bg-[#181818] hover:bg-[#282828] p-5 rounded-lg transition-colors group relative cursor-pointer h-64 flex flex-col justify-center gap-4"
-                                onClick={(e) => { e.stopPropagation(); navigate(`/artist/${topResult.artistId}`); }}
+                                onClick={(e) => { e.stopPropagation(); navigate(`/track/${topResult.id}`); }}
                             >
-                                <img src={topResult.coverUrl} alt={topResult.title} className="w-[92px] h-[92px] rounded shadow-lg object-cover" />
+                                <img src={topResult.coverUrl} alt={topResult.title} className="w-32 h-32 rounded shadow-[0_8px_24px_rgba(0,0,0,0.5)] object-cover mb-2" />
                                 
                                 <div>
                                     <div className="text-3xl font-bold text-white mb-1 line-clamp-2 pb-1 tracking-tight">{topResult.title}</div>

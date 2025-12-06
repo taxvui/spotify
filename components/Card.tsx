@@ -36,8 +36,8 @@ export const Card: React.FC<CardProps> = ({ id, image, title, description, type 
   };
 
   const handleClick = () => {
-    if (type === 'track' && track) {
-        if(track.albumId) navigate(`/album/${track.albumId}`);
+    if (type === 'track') {
+        navigate(`/track/${id}`);
     } else {
         navigate(`/${type}/${id}`);
     }
