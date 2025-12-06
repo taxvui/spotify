@@ -1,145 +1,170 @@
+
 import React, { useEffect, useState } from 'react';
 import { Card } from './Card';
-import { getFeaturedPlaylists, getNewReleases, getCategoryPlaylists } from '../services/spotifyService';
-import { Playlist } from '../types';
+import { getNewReleases, getTrendingTracks, getTopArtists, getFeaturedCharts, getPopularRadio } from '../services/spotifyService';
+import { Playlist, Track, ArtistFull } from '../types';
+import { MOCK_TRACKS, MOCK_PLAYLISTS } from '../constants';
 
-const CHIPS = ['All', 'Music', 'Podcasts'];
-
-const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return 'Good morning';
-    if (hour < 18) return 'Good afternoon';
-    return 'Good evening';
-};
+const SectionHeader = ({ title, showAll = true }: { title: string, showAll?: boolean }) => (
+    <div className="flex justify-between items-center mb-4 px-2">
+        <h2 className="text-2xl font-bold text-white tracking-tight hover:underline cursor-pointer">{title}</h2>
+        {showAll && (
+            <span className="text-[14px] font-bold text-[#b3b3b3] hover:underline cursor-pointer tracking-wide">
+                Show all
+            </span>
+        )}
+    </div>
+);
 
 export const Home = () => {
-    const [greeting, setGreeting] = useState(getGreeting());
-    const [featured, setFeatured] = useState<Playlist[]>([]);
-    const [newReleases, setNewReleases] = useState<Playlist[]>([]);
-    const [activeChip, setActiveChip] = useState('All');
+    const [trendingTracks, setTrendingTracks] = useState<Track[]>([]);
+    const [popularArtists, setPopularArtists] = useState<ArtistFull[]>([]);
+    const [popularAlbums, setPopularAlbums] = useState<Playlist[]>([]);
+    const [featuredCharts, setFeaturedCharts] = useState<Playlist[]>([]);
+    const [popularRadio, setPopularRadio] = useState<Playlist[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const fetchData = async () => {
             setLoading(true);
             try {
-                // Determine what to fetch based on active chip
-                let feat: Playlist[] = [];
-                let rel: Playlist[] = [];
-                
-                // Update greeting based on current time
-                setGreeting(getGreeting());
+                const [tracks, artists, albums, charts, radios] = await Promise.all([
+                    getTrendingTracks(),
+                    getTopArtists(),
+                    getNewReleases(),
+                    getFeaturedCharts(),
+                    getPopularRadio()
+                ]);
 
-                if (activeChip === 'All') {
-                     [feat, rel] = await Promise.all([
-                        getFeaturedPlaylists(),
-                        getNewReleases()
-                    ]);
-                } else if (activeChip === 'Music') {
-                    // Fetch specific category playlists for Music
-                    const musicPlaylists = await getCategoryPlaylists('pop');
-                    feat = musicPlaylists;
-                    rel = await getNewReleases(); // Keep new releases for Music
-                } else if (activeChip === 'Podcasts') {
-                    const podcastPlaylists = await getCategoryPlaylists('educational');
-                    feat = podcastPlaylists;
-                    rel = []; 
+                // Use fetched data or fallback to mocks if empty to ensure UI is populated
+                setTrendingTracks(tracks.length > 0 ? tracks.slice(0, 7) : MOCK_TRACKS);
+                
+                if (artists.length > 0) {
+                    setPopularArtists(artists.slice(0, 7));
+                } else {
+                     // Create mock artists from mock tracks if needed
+                     const mockArtists: ArtistFull[] = MOCK_TRACKS.map((t, i) => ({
+                         id: `mock-artist-${i}`,
+                         name: t.artist.split(',')[0],
+                         images: [{ url: t.coverUrl, height: 300, width: 300 }],
+                         followers: { total: 1000000 },
+                         genres: ['Pop'],
+                         popularity: 80
+                     }));
+                     setPopularArtists(mockArtists);
                 }
 
-                setFeatured(feat);
-                setNewReleases(rel);
+                setPopularAlbums(albums.length > 0 ? albums.slice(0, 7) : MOCK_PLAYLISTS.map(p => ({...p, type: 'album'} as Playlist)));
+                setFeaturedCharts(charts.length > 0 ? charts.slice(0, 7) : MOCK_PLAYLISTS);
+                setPopularRadio(radios.length > 0 ? radios.slice(0, 7) : MOCK_PLAYLISTS);
+
             } catch (e) {
                 console.error("Error loading home data", e);
+                // Fallback to mocks on error
+                setTrendingTracks(MOCK_TRACKS);
+                setPopularAlbums(MOCK_PLAYLISTS);
+                setFeaturedCharts(MOCK_PLAYLISTS);
             }
             setLoading(false);
         };
         fetchData();
-    }, [activeChip]);
+    }, []);
 
-    // Helper to get first few items
-    const topPicks = featured.slice(0, 6);
+    if (loading) {
+        return (
+            <div className="flex justify-center items-center h-full min-h-[500px]">
+                <div className="w-10 h-10 border-4 border-spotify-green border-t-transparent rounded-full animate-spin"></div>
+            </div>
+        );
+    }
 
     return (
-        <div className="p-6 pt-20">
-             {/* Chips Filter Row */}
-             <div className="flex gap-2 mb-6">
-                {CHIPS.map(chip => (
-                    <button
-                        key={chip}
-                        onClick={() => setActiveChip(chip)}
-                        className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
-                            activeChip === chip 
-                            ? 'bg-white text-black' 
-                            : 'bg-spotify-highlight text-white hover:bg-spotify-hover'
-                        }`}
-                    >
-                        {chip}
-                    </button>
-                ))}
-             </div>
-
-             {loading ? (
-                <div className="flex justify-center h-40 items-center">
-                    <div className="w-8 h-8 border-4 border-spotify-green border-t-transparent rounded-full animate-spin"></div>
+        <div className="flex flex-col gap-8 px-4 pt-2 pb-8">
+            {/* Trending Songs Section */}
+            <section>
+                <SectionHeader title="Trending songs" />
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-4">
+                    {trendingTracks.map(track => (
+                        <Card 
+                            key={`trending-${track.id}`}
+                            id={track.id}
+                            image={track.coverUrl}
+                            title={track.title}
+                            description={track.artist}
+                            type="track"
+                            track={track}
+                        />
+                    ))}
                 </div>
-             ) : (
-                <>
-                    {activeChip !== 'Podcasts' && <h1 className="text-3xl font-bold mb-6 text-white">{greeting}</h1>}
-                    
-                    {/* Featured Grid (Small Cards) - Only for All or Music */}
-                    {activeChip !== 'Podcasts' && (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-                            {topPicks.map(playlist => (
-                                <div key={`recent-${playlist.id}`} className="flex items-center bg-spotify-highlight hover:bg-spotify-hover transition-colors rounded-md overflow-hidden cursor-pointer group h-16 sm:h-20" onClick={() => window.location.hash = `#/playlist/${playlist.id}`}>
-                                    <img src={playlist.coverUrl} alt={playlist.name} className="h-full w-16 sm:w-20 object-cover shadow-lg" />
-                                    <div className="flex-1 px-4 font-bold text-white flex justify-between items-center overflow-hidden">
-                                        <span className="truncate pr-2">{playlist.name}</span>
-                                        <div className="w-10 h-10 min-w-[2.5rem] bg-spotify-green rounded-full shadow-xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <svg role="img" height="16" width="16" aria-hidden="true" viewBox="0 0 24 24" fill="black">
-                                                <path d="m7.05 3.606 13.49 7.788a.7.7 0 0 1 0 1.212L7.05 20.394A.7.7 0 0 1 6 19.788V4.212a.7.7 0 0 1 1.05-.606z"></path>
-                                            </svg>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
+            </section>
 
-                    {newReleases.length > 0 && (
-                        <>
-                            <h2 className="text-2xl font-bold mb-4 hover:underline cursor-pointer">New Releases</h2>
-                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-6 mb-8">
-                                {newReleases.map(playlist => (
-                                    <Card 
-                                        key={playlist.id} 
-                                        id={playlist.id}
-                                        image={playlist.coverUrl} 
-                                        title={playlist.name} 
-                                        description={playlist.description}
-                                        type="album"
-                                    />
-                                ))}
-                            </div>
-                        </>
-                    )}
+            {/* Popular Artists Section */}
+            <section>
+                <SectionHeader title="Popular artists" />
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-4">
+                    {popularArtists.map(artist => (
+                        <Card 
+                            key={`artist-${artist.id}`}
+                            id={artist.id}
+                            image={artist.images[0]?.url || 'https://via.placeholder.com/300'}
+                            title={artist.name}
+                            description="Artist"
+                            type="artist"
+                        />
+                    ))}
+                </div>
+            </section>
 
-                    <h2 className="text-2xl font-bold mb-4 hover:underline cursor-pointer">
-                        {activeChip === 'Podcasts' ? 'Educational Podcasts' : 'Featured Playlists'}
-                    </h2>
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-6">
-                        {featured.map(playlist => (
-                            <Card 
-                                key={`featured-${playlist.id}`} 
-                                id={playlist.id}
-                                image={playlist.coverUrl} 
-                                title={playlist.name} 
-                                description={playlist.description}
-                                type="playlist"
-                            />
-                        ))}
-                    </div>
-                </>
-             )}
+            {/* Popular Albums Section */}
+            <section>
+                <SectionHeader title="Popular albums and singles" />
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-4">
+                    {popularAlbums.map(album => (
+                        <Card 
+                            key={`album-${album.id}`}
+                            id={album.id}
+                            image={album.coverUrl}
+                            title={album.name}
+                            description={album.description || `Album • ${album.name}`} 
+                            type="album"
+                        />
+                    ))}
+                </div>
+            </section>
+
+            {/* Popular Radio Section */}
+            <section>
+                <SectionHeader title="Popular radio" />
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-4">
+                    {popularRadio.map(playlist => (
+                        <Card 
+                            key={`radio-${playlist.id}`}
+                            id={playlist.id}
+                            image={playlist.coverUrl}
+                            title={playlist.name}
+                            description={playlist.description || 'Non-stop music based on your favorite artists.'}
+                            type="playlist"
+                        />
+                    ))}
+                </div>
+            </section>
+
+            {/* Featured Charts Section */}
+            <section>
+                <SectionHeader title="Featured Charts" />
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-4">
+                    {featuredCharts.map(playlist => (
+                        <Card 
+                            key={`chart-${playlist.id}`}
+                            id={playlist.id}
+                            image={playlist.coverUrl}
+                            title={playlist.name}
+                            description={playlist.description || 'Top tracks globally.'}
+                            type="playlist"
+                        />
+                    ))}
+                </div>
+            </section>
         </div>
     );
 };

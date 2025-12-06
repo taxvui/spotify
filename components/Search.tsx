@@ -36,6 +36,7 @@ export const Search = () => {
     // Filter state
     const [showFilters, setShowFilters] = useState(false);
     const [yearFilter, setYearFilter] = useState('');
+    const [decadeFilter, setDecadeFilter] = useState('');
     const [genreFilter, setGenreFilter] = useState('');
 
     const { playTrack, currentTrack, isPlaying, addToQueue } = usePlayer();
@@ -118,16 +119,25 @@ export const Search = () => {
     const filteredResults = results.filter(track => {
         let matchesYear = true;
         let matchesGenre = true;
+        let matchesDecade = true;
 
         if (yearFilter) {
             matchesYear = track.releaseYear === yearFilter;
+        }
+
+        if (decadeFilter && track.releaseYear) {
+            const year = parseInt(track.releaseYear);
+            const decadeStart = parseInt(decadeFilter);
+            if (!isNaN(year) && !isNaN(decadeStart)) {
+                matchesDecade = year >= decadeStart && year < decadeStart + 10;
+            }
         }
 
         if (genreFilter) {
             matchesGenre = track.genre ? track.genre.toLowerCase().includes(genreFilter.toLowerCase()) : false;
         }
 
-        return matchesYear && matchesGenre;
+        return matchesYear && matchesGenre && matchesDecade;
     });
 
     const topResult = filteredResults[0];
@@ -180,7 +190,7 @@ export const Search = () => {
             {!loading && results.length > 0 && (
                 <div className="mb-8 grid grid-cols-1 lg:grid-cols-5 gap-6">
                     {/* Top Result Section - Only show if not filtered out */}
-                    {topResult && !yearFilter && !genreFilter && (
+                    {topResult && !yearFilter && !genreFilter && !decadeFilter && (
                          <div className="lg:col-span-2">
                             <h2 className="text-2xl font-bold mb-4">Top result</h2>
                             <div 
@@ -222,7 +232,7 @@ export const Search = () => {
                     )}
 
                     {/* Songs List Section */}
-                     <div className={!topResult || yearFilter || genreFilter ? "lg:col-span-5" : "lg:col-span-3"}>
+                     <div className={!topResult || yearFilter || genreFilter || decadeFilter ? "lg:col-span-5" : "lg:col-span-3"}>
                          <div className="flex items-center justify-between mb-4">
                              <h2 className="text-2xl font-bold">Songs</h2>
                              <button 
@@ -236,7 +246,24 @@ export const Search = () => {
 
                          {/* Filter Bar */}
                          {showFilters && (
-                             <div className="flex gap-4 mb-6 bg-spotify-card p-4 rounded-md">
+                             <div className="flex gap-4 mb-6 bg-spotify-card p-4 rounded-md flex-wrap">
+                                 <div className="flex flex-col gap-1">
+                                     <label className="text-xs font-bold text-spotify-grey uppercase">Decade</label>
+                                     <select 
+                                        value={decadeFilter}
+                                        onChange={(e) => setDecadeFilter(e.target.value)}
+                                        className="bg-spotify-highlight text-white text-sm rounded px-3 py-2 border border-transparent focus:border-spotify-grey focus:outline-none w-32 cursor-pointer h-[38px]"
+                                     >
+                                        <option value="">All</option>
+                                        <option value="2020">2020s</option>
+                                        <option value="2010">2010s</option>
+                                        <option value="2000">2000s</option>
+                                        <option value="1990">1990s</option>
+                                        <option value="1980">1980s</option>
+                                        <option value="1970">1970s</option>
+                                        <option value="1960">1960s</option>
+                                     </select>
+                                 </div>
                                  <div className="flex flex-col gap-1">
                                      <label className="text-xs font-bold text-spotify-grey uppercase">Year</label>
                                      <input 
@@ -244,7 +271,7 @@ export const Search = () => {
                                         placeholder="YYYY" 
                                         value={yearFilter}
                                         onChange={(e) => setYearFilter(e.target.value)}
-                                        className="bg-spotify-highlight text-white text-sm rounded px-3 py-2 border border-transparent focus:border-spotify-grey focus:outline-none w-24"
+                                        className="bg-spotify-highlight text-white text-sm rounded px-3 py-2 border border-transparent focus:border-spotify-grey focus:outline-none w-24 h-[38px]"
                                      />
                                  </div>
                                  <div className="flex flex-col gap-1">
@@ -254,13 +281,13 @@ export const Search = () => {
                                         placeholder="Pop, Rock..." 
                                         value={genreFilter}
                                         onChange={(e) => setGenreFilter(e.target.value)}
-                                        className="bg-spotify-highlight text-white text-sm rounded px-3 py-2 border border-transparent focus:border-spotify-grey focus:outline-none w-40"
+                                        className="bg-spotify-highlight text-white text-sm rounded px-3 py-2 border border-transparent focus:border-spotify-grey focus:outline-none w-40 h-[38px]"
                                      />
                                  </div>
-                                 {(yearFilter || genreFilter) && (
+                                 {(yearFilter || genreFilter || decadeFilter) && (
                                      <button 
-                                        onClick={() => { setYearFilter(''); setGenreFilter(''); }}
-                                        className="self-end mb-1 text-xs font-bold text-spotify-grey hover:text-white"
+                                        onClick={() => { setYearFilter(''); setGenreFilter(''); setDecadeFilter(''); }}
+                                        className="self-end mb-2 text-xs font-bold text-spotify-grey hover:text-white"
                                      >
                                          Clear
                                      </button>
@@ -269,7 +296,7 @@ export const Search = () => {
                          )}
 
                          <div className="flex flex-col">
-                             {filteredResults.length === 0 && (yearFilter || genreFilter) ? (
+                             {filteredResults.length === 0 && (yearFilter || genreFilter || decadeFilter) ? (
                                  <div className="text-spotify-grey py-4">No songs found matching filters.</div>
                              ) : (
                                 filteredResults.map((track) => (

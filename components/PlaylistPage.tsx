@@ -16,7 +16,7 @@ export const PlaylistPage = () => {
     const { id } = useParams<{ id: string }>();
     const [playlist, setPlaylist] = useState<PlaylistFull | null>(null);
     const [loading, setLoading] = useState(true);
-    const { playTrack, currentTrack, isPlaying } = usePlayer();
+    const { playTrack, playPlaylist, currentTrack, isPlaying } = usePlayer();
 
     useEffect(() => {
         if (!id) return;
@@ -54,9 +54,18 @@ export const PlaylistPage = () => {
                 <button 
                     onClick={() => playlist.tracks.length > 0 && playTrack(playlist.tracks[0])}
                     className="w-14 h-14 bg-spotify-green rounded-full flex items-center justify-center hover:scale-105 hover:brightness-105 transition-all shadow-lg"
+                    title="Play first track"
                 >
                     <PlayIconBig />
                 </button>
+
+                <button 
+                    onClick={() => playPlaylist(playlist.tracks)}
+                    className="px-6 py-2 rounded-full border border-[#727272] hover:border-white text-white font-bold text-sm tracking-widest hover:scale-105 transition-all"
+                >
+                    PLAY ALL
+                </button>
+
                 <button className="text-spotify-grey hover:text-white transition-colors">
                     <svg role="img" height="32" width="32" aria-hidden="true" viewBox="0 0 24 24" fill="currentColor"><path d="M5.21 1.57a6.757 6.757 0 0 1 6.778 0 3.379 3.379 0 0 1 .5.51l.008.01a7.284 7.284 0 0 1 .31.39l.298.406c.453.64.887 1.348 1.455 1.348.568 0 1.002-.708 1.455-1.348l.298-.407a7.02 7.02 0 0 1 .318-.401 3.38 3.38 0 0 1 .5-.51 6.757 6.757 0 0 1 6.779 0A6.744 6.744 0 0 1 24 7.643c0 7.502-11.417 14.155-11.667 14.296a.63.63 0 0 1-.666 0C11.417 21.798 0 15.145 0 7.642A6.744 6.744 0 0 1 5.21 1.57zm13.116 1.834a5.244 5.244 0 0 0-4.994.498 1.88 1.88 0 0 0-.293.308l-.008.01a5.61 5.61 0 0 0-.27.35l-.299.407c-.772 1.088-1.577 2.222-2.903 2.222s-2.13-1.134-2.903-2.222l-.299-.407a5.597 5.597 0 0 0-.279-.36 1.879 1.879 0 0 0-.293-.308 5.244 5.244 0 0 0-4.994-.498 5.245 5.245 0 0 0-4.045 4.72C.674 13.045 9.489 18.23 12 19.66c2.511-1.43 11.326-6.615 11.536-11.838a5.245 5.245 0 0 0-4.045-4.72z"></path></svg>
                 </button>

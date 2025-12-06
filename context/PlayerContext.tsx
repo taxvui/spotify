@@ -9,6 +9,7 @@ interface PlayerContextType {
   duration: number;
   volume: number;
   playTrack: (track: Track) => void;
+  playPlaylist: (tracks: Track[]) => void;
   togglePlay: () => void;
   nextTrack: () => void;
   prevTrack: () => void;
@@ -19,7 +20,7 @@ interface PlayerContextType {
 
 const PlayerContext = createContext<PlayerContextType | undefined>(undefined);
 
-export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+export const PlayerProvider = ({ children }: { children?: ReactNode }) => {
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [queue, setQueue] = useState<Track[]>([]);
@@ -135,6 +136,13 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     }
   };
 
+  const playPlaylist = (tracks: Track[]) => {
+      if (tracks.length === 0) return;
+      setCurrentTrack(tracks[0]);
+      setQueue(tracks.slice(1));
+      setIsPlaying(true);
+  };
+
   const togglePlay = () => {
     if (currentTrack) {
       setIsPlaying(!isPlaying);
@@ -179,7 +187,8 @@ export const PlayerProvider: React.FC<{ children: ReactNode }> = ({ children }) 
         currentTime, 
         duration, 
         volume,
-        playTrack, 
+        playTrack,
+        playPlaylist,
         togglePlay, 
         nextTrack, 
         prevTrack, 

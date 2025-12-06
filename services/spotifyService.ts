@@ -2,9 +2,8 @@ import { Track, Playlist, PlaylistFull, AlbumFull, ArtistFull, UserProfile } fro
 
 const CLIENT_ID = 'bdc640818e8747eaa7ff3903a8d6cede';
 // Note: In a real production app, never expose client secret on the client side.
-// This should be handled by a backend proxy.
 const CLIENT_SECRET = '40fec813eecc4ee9b8eed33fa9f8a3fc';
-const REDIRECT_URI = window.location.origin + '/callback';
+const REDIRECT_URI = 'https://spotify-sepia-chi.vercel.app/callback';
 
 let accessToken = '';
 let tokenExpiration = 0;
@@ -16,7 +15,8 @@ let userTokenExpiration = 0;
 export const loginWithSpotify = () => {
     const scope = 'user-read-private user-read-email playlist-read-private';
     const authUrl = `https://accounts.spotify.com/authorize?client_id=${CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${encodeURIComponent(scope)}`;
-    window.location.href = authUrl;
+    // Use assign to strictly navigate
+    window.location.assign(authUrl);
 };
 
 export const handleAuthCallback = async (code: string) => {
@@ -36,7 +36,6 @@ export const handleAuthCallback = async (code: string) => {
         const data = await response.json();
         userAccessToken = data.access_token;
         userTokenExpiration = Date.now() + (data.expires_in * 1000);
-        // Also save refresh token if needed, but keeping it simple for now
         return true;
     } catch (e) {
         console.error(e);
@@ -129,7 +128,7 @@ const mapPlaylist = (item: any): Playlist => ({
 const mapAlbum = (item: any): Playlist => ({
     id: item.id,
     name: item.name,
-    description: item.artists ? item.artists.map((a: any) => a.name).join(', ') + ' • ' + (item.release_date?.split('-')[0] || '') : '',
+    description: item.artists ? item.artists.map((a: any) => a.name).join(', ') : '',
     coverUrl: item.images?.[0]?.url || 'https://via.placeholder.com/300',
     tracks: [],
     type: 'album'
@@ -153,7 +152,7 @@ export const searchTracks = async (query: string): Promise<Track[]> => {
   if (!token) return [];
 
   try {
-    const response = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=20`, {
+    const response = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=20&market=VN`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     const data = await response.json();
@@ -169,7 +168,7 @@ export const getNewReleases = async (): Promise<Playlist[]> => {
   if (!token) return [];
 
   try {
-    const response = await fetch(`https://api.spotify.com/v1/browse/new-releases?limit=12`, {
+    const response = await fetch(`https://api.spotify.com/v1/browse/new-releases?limit=12&country=VN`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     const data = await response.json();
@@ -185,7 +184,7 @@ export const getFeaturedPlaylists = async (): Promise<Playlist[]> => {
     if (!token) return [];
   
     try {
-      const response = await fetch(`https://api.spotify.com/v1/browse/featured-playlists?limit=12`, {
+      const response = await fetch(`https://api.spotify.com/v1/browse/featured-playlists?limit=12&country=VN`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await response.json();
@@ -201,7 +200,7 @@ export const getCategories = async (): Promise<{id: string, name: string, icon: 
     if (!token) return [];
 
     try {
-        const response = await fetch(`https://api.spotify.com/v1/browse/categories?limit=20`, {
+        const response = await fetch(`https://api.spotify.com/v1/browse/categories?limit=20&country=VN`, {
             headers: { Authorization: `Bearer ${token}` },
         });
         const data = await response.json();
@@ -220,7 +219,7 @@ export const getCategoryPlaylists = async (categoryId: string): Promise<Playlist
     if (!token) return [];
 
     try {
-        const response = await fetch(`https://api.spotify.com/v1/browse/categories/${categoryId}/playlists?limit=12`, {
+        const response = await fetch(`https://api.spotify.com/v1/browse/categories/${categoryId}/playlists?limit=12&country=VN`, {
             headers: { Authorization: `Bearer ${token}` },
         });
         const data = await response.json();
@@ -241,8 +240,6 @@ export const getPlaylist = async (id: string): Promise<PlaylistFull | null> => {
         if (!response.ok) return null;
         
         const data = await response.json();
-        
-        // Handle pagination for tracks if needed (currently just taking first 100)
         const tracks = data.tracks.items.map(mapTrack).filter((t: Track) => t.id !== 'unknown');
 
         return {
@@ -273,12 +270,11 @@ export const getAlbum = async (id: string): Promise<AlbumFull | null> => {
         if (!response.ok) return null;
 
         const data = await response.json();
-        // Album tracks don't include the album object in the response items usually, so we patch it
         const tracks = data.tracks.items.map((item: any) => ({
             ...mapTrack(item),
-            coverUrl: data.images?.[0]?.url, // Use album cover for tracks
+            coverUrl: data.images?.[0]?.url, 
             album: data.name,
-            releaseYear: data.release_date?.split('-')[0] // Ensure release year comes from album details
+            releaseYear: data.release_date?.split('-')[0]
         }));
 
         return {
@@ -314,7 +310,7 @@ export const getArtistTopTracks = async (id: string): Promise<Track[]> => {
     const token = await getAccessToken();
     if (!token) return [];
     try {
-        const response = await fetch(`https://api.spotify.com/v1/artists/${id}/top-tracks?market=US`, {
+        const response = await fetch(`https://api.spotify.com/v1/artists/${id}/top-tracks?market=VN`, {
             headers: { Authorization: `Bearer ${token}` },
         });
         const data = await response.json();
@@ -326,7 +322,7 @@ export const getArtistAlbums = async (id: string): Promise<Playlist[]> => {
     const token = await getAccessToken();
     if (!token) return [];
     try {
-        const response = await fetch(`https://api.spotify.com/v1/artists/${id}/albums?include_groups=album,single&limit=10`, {
+        const response = await fetch(`https://api.spotify.com/v1/artists/${id}/albums?include_groups=album,single&limit=10&market=VN`, {
             headers: { Authorization: `Bearer ${token}` },
         });
         const data = await response.json();
@@ -352,10 +348,80 @@ export const getRecommendations = async (seedTracks: string[]): Promise<Track[]>
     if (!token) return [];
     try {
         const seeds = seedTracks.slice(0, 5).join(',');
-        const response = await fetch(`https://api.spotify.com/v1/recommendations?seed_tracks=${seeds}&limit=10`, {
+        const response = await fetch(`https://api.spotify.com/v1/recommendations?seed_tracks=${seeds}&limit=10&market=VN`, {
             headers: { Authorization: `Bearer ${token}` },
         });
         const data = await response.json();
         return data.tracks.map(mapTrack);
     } catch(e) { return []; }
+}
+
+// --- Home Page Design Methods ---
+
+export const getTopArtists = async (): Promise<ArtistFull[]> => {
+    const token = await getAccessToken();
+    if (!token) return [];
+    try {
+        // Fetch popular artists generally if VN market specific search returns nothing
+        const response = await fetch(`https://api.spotify.com/v1/search?q=genre:pop&type=artist&limit=7&market=VN`, {
+            headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await response.json();
+        return data.artists?.items || [];
+    } catch (e) { return []; }
+}
+
+export const getTrendingTracks = async (): Promise<Track[]> => {
+    // Try "Global Top 50" if "Top 50 - Vietnam" fails or implies usage of other playlist
+    // Global Top 50: 37i9dQZEVXbMDoHDwVN2tF
+    // Top 50 - Vietnam: 37i9dQZEVXbLdGSmz6xilI
+    
+    const playlistIds = ['37i9dQZEVXbLdGSmz6xilI', '37i9dQZEVXbMDoHDwVN2tF'];
+    
+    for (const id of playlistIds) {
+        const playlist = await getPlaylist(id); 
+        if (playlist && playlist.tracks.length > 0) {
+            return playlist.tracks.slice(0, 7);
+        }
+    }
+     
+     // Fallback if playlist fails
+     const featured = await getFeaturedPlaylists();
+     if(featured[0]) {
+         const fp = await getPlaylist(featured[0].id);
+         return fp ? fp.tracks.slice(0, 7) : [];
+     }
+     return [];
+}
+
+export const getFeaturedCharts = async (): Promise<Playlist[]> => {
+    const token = await getAccessToken();
+    if (!token) return [];
+    try {
+        // Fetch 'toplists' category playlists
+        const response = await fetch(`https://api.spotify.com/v1/browse/categories/toplists/playlists?limit=7&country=VN`, {
+            headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await response.json();
+        const items = data.playlists?.items?.map(mapPlaylist) || [];
+        
+        if (items.length === 0) {
+            // Fallback to featured
+             return getFeaturedPlaylists().then(res => res.slice(0, 7));
+        }
+        return items;
+    } catch (e) { return []; }
+}
+
+export const getPopularRadio = async (): Promise<Playlist[]> => {
+    const token = await getAccessToken();
+    if (!token) return [];
+    try {
+        // Search for playlists with "Radio" in the title
+        const response = await fetch(`https://api.spotify.com/v1/search?q=Radio&type=playlist&limit=7&market=VN`, {
+            headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await response.json();
+        return data.playlists?.items?.map(mapPlaylist) || [];
+    } catch (e) { return []; }
 }
