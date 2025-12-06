@@ -63,10 +63,11 @@ export const PlayerProvider = ({ children }: { children?: ReactNode }) => {
                     });
             }
         } else {
-             console.log("No preview URL for track:", currentTrack.title);
+             console.warn("No preview URL for track:", currentTrack.title, "- Playback is not possible.");
              audio.src = "";
              setIsPlaying(false);
              setDuration(0);
+             setCurrentTime(0);
         }
     }
   }, [currentTrack]);
@@ -144,7 +145,7 @@ export const PlayerProvider = ({ children }: { children?: ReactNode }) => {
   };
 
   const togglePlay = () => {
-    if (currentTrack) {
+    if (currentTrack && currentTrack.previewUrl) {
       setIsPlaying(!isPlaying);
     }
   };

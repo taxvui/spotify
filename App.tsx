@@ -10,6 +10,7 @@ import { ArtistPage } from './components/ArtistPage';
 import { TrackPage } from './components/TrackPage';
 import { Sidebar } from './components/Sidebar';
 import { TopBar } from './components/TopBar';
+import { Player } from './components/Player';
 
 import { PlayerProvider } from './context/PlayerContext';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
@@ -21,7 +22,7 @@ const ScrollWrapper = ({ children }: { children?: React.ReactNode }) => {
             <div className="flex-1 overflow-y-auto bg-[#121212] relative scroll-smooth custom-scrollbar">
                 {/* Gradient background at the top */}
                 <div className="absolute top-0 left-0 w-full h-[332px] bg-gradient-to-b from-[#1f1f1f] to-[#121212] -z-10" />
-                <div className="pt-4">
+                <div>
                     {children}
                 </div>
             </div>
@@ -52,11 +53,10 @@ const AppContent = () => {
         <div className="flex flex-col h-screen w-screen bg-black text-white font-sans overflow-hidden">
             <TopBar />
             {/* Main Layout Area with Gap */}
-            <div className="flex-1 flex gap-2 p-2 pt-0 overflow-hidden">
+            <div className="flex-1 flex gap-2 p-2 pt-0 overflow-hidden min-h-0">
                 <Sidebar />
                 
                 <ScrollWrapper>
-                <Home />
                     <Routes>
                         <Route path="/" element={<Home />} />
                         <Route path="/search" element={<Search />} />
@@ -67,9 +67,10 @@ const AppContent = () => {
                         <Route path="/track/:id" element={<TrackPage />} />
                     </Routes>
                 </ScrollWrapper>
-                
             </div>
             
+            {/* Player Footer */}
+            <Player />
         </div>
     );
 }

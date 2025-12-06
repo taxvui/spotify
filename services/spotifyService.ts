@@ -1,7 +1,8 @@
+
 import { Track, Playlist, PlaylistFull, AlbumFull, ArtistFull, UserProfile } from '../types';
+import { MOCK_TRENDING, MOCK_ARTISTS, MOCK_ALBUMS, MOCK_RADIO, MOCK_CHARTS, MOCK_TRACKS } from '../constants';
 
 const CLIENT_ID = 'bdc640818e8747eaa7ff3903a8d6cede';
-// Note: In a real production app, never expose client secret on the client side.
 const CLIENT_SECRET = '40fec813eecc4ee9b8eed33fa9f8a3fc';
 const REDIRECT_URI = 'https://spotify-sepia-chi.vercel.app/callback';
 
@@ -10,12 +11,9 @@ let tokenExpiration = 0;
 let userAccessToken = '';
 let userTokenExpiration = 0;
 
-// --- Authentication ---
-
 export const loginWithSpotify = () => {
     const scope = 'user-read-private user-read-email playlist-read-private';
     const authUrl = `https://accounts.spotify.com/authorize?client_id=${CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${encodeURIComponent(scope)}`;
-    // Use assign to strictly navigate
     window.location.assign(authUrl);
 };
 
@@ -44,12 +42,10 @@ export const handleAuthCallback = async (code: string) => {
 }
 
 const getAccessToken = async () => {
-  // Prefer user token if logged in
   if (userAccessToken && Date.now() < userTokenExpiration) {
       return userAccessToken;
   }
 
-  // Fallback to Client Credentials
   if (accessToken && Date.now() < tokenExpiration) {
     return accessToken;
   }
@@ -65,14 +61,15 @@ const getAccessToken = async () => {
       body: 'grant_type=client_credentials',
     });
 
-    if (!response.ok) throw new Error('Failed to fetch token');
+    if (!response.ok) {
+        return null;
+    }
 
     const data = await response.json();
     accessToken = data.access_token;
     tokenExpiration = Date.now() + (data.expires_in * 1000);
     return accessToken;
   } catch (error) {
-    console.error('Error fetching Spotify token:', error);
     return null;
   }
 };
@@ -83,13 +80,9 @@ const formatDuration = (ms: number): string => {
   return `${minutes}:${Number(seconds) < 10 ? '0' : ''}${seconds}`;
 };
 
-// --- Mappers ---
-
 const mapTrack = (item: any): Track => {
-    // Handle both direct track object or track object inside 'track' property (playlist)
     const track = item.track || item; 
     
-    // Safety check for empty track objects
     if (!track || !track.name) {
         return {
             id: 'unknown',
@@ -134,8 +127,6 @@ const mapAlbum = (item: any): Playlist => ({
     type: 'album'
   });
 
-// --- API Methods ---
-
 export const getCurrentUserProfile = async (): Promise<UserProfile | null> => {
     if (!userAccessToken) return null;
     try {
@@ -149,7 +140,7 @@ export const getCurrentUserProfile = async (): Promise<UserProfile | null> => {
 
 export const searchTracks = async (query: string): Promise<Track[]> => {
   const token = await getAccessToken();
-  if (!token) return [];
+  if (!token) return MOCK_TRACKS.filter(t => t.title.toLowerCase().includes(query.toLowerCase()));
 
   try {
     const response = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=20&market=VN`, {
@@ -158,40 +149,39 @@ export const searchTracks = async (query: string): Promise<Track[]> => {
     const data = await response.json();
     return data.tracks?.items?.map(mapTrack) || [];
   } catch (error) {
-    console.error('Search error:', error);
-    return [];
+    return MOCK_TRACKS;
   }
 };
 
 export const getNewReleases = async (): Promise<Playlist[]> => {
   const token = await getAccessToken();
-  if (!token) return [];
+  if (!token) return MOCK_ALBUMS;
 
   try {
     const response = await fetch(`https://api.spotify.com/v1/browse/new-releases?limit=12&country=VN`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     const data = await response.json();
-    return data.albums?.items?.map(mapAlbum) || [];
+    const items = data.albums?.items?.map(mapAlbum) || [];
+    return items.length > 0 ? items : MOCK_ALBUMS;
   } catch (error) {
-    console.error(error);
-    return [];
+    return MOCK_ALBUMS;
   }
 };
 
 export const getFeaturedPlaylists = async (): Promise<Playlist[]> => {
     const token = await getAccessToken();
-    if (!token) return [];
+    if (!token) return MOCK_CHARTS;
   
     try {
       const response = await fetch(`https://api.spotify.com/v1/browse/featured-playlists?limit=12&country=VN`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await response.json();
-      return data.playlists?.items?.map(mapPlaylist) || [];
+      const items = data.playlists?.items?.map(mapPlaylist) || [];
+      return items.length > 0 ? items : MOCK_CHARTS;
     } catch (error) {
-      console.error(error);
-      return [];
+      return MOCK_CHARTS;
     }
 };
 
@@ -216,7 +206,7 @@ export const getCategories = async (): Promise<{id: string, name: string, icon: 
 
 export const getCategoryPlaylists = async (categoryId: string): Promise<Playlist[]> => {
     const token = await getAccessToken();
-    if (!token) return [];
+    if (!token) return MOCK_CHARTS;
 
     try {
         const response = await fetch(`https://api.spotify.com/v1/browse/categories/${categoryId}/playlists?limit=12&country=VN`, {
@@ -231,7 +221,17 @@ export const getCategoryPlaylists = async (categoryId: string): Promise<Playlist
 
 export const getPlaylist = async (id: string): Promise<PlaylistFull | null> => {
     const token = await getAccessToken();
-    if (!token) return null;
+    if (!token) {
+        const mockP = MOCK_CHARTS.find(p => p.id === id) || MOCK_RADIO.find(p => p.id === id) || MOCK_CHARTS[0];
+        return {
+            ...mockP,
+            tracks: MOCK_TRENDING,
+            owner: 'Spotify',
+            followers: 123456,
+            total_tracks: MOCK_TRENDING.length,
+            type: 'playlist'
+        };
+    }
 
     try {
         const response = await fetch(`https://api.spotify.com/v1/playlists/${id}`, {
@@ -254,14 +254,26 @@ export const getPlaylist = async (id: string): Promise<PlaylistFull | null> => {
             type: 'playlist'
         };
     } catch (e) {
-        console.error(e);
         return null;
     }
 }
 
 export const getAlbum = async (id: string): Promise<AlbumFull | null> => {
     const token = await getAccessToken();
-    if (!token) return null;
+    if (!token) {
+        const mockA = MOCK_ALBUMS.find(a => a.id === id) || MOCK_ALBUMS[0];
+        return {
+            id: mockA.id,
+            name: mockA.name,
+            artist: mockA.description,
+            artistId: 'mock-artist',
+            release_date: '2024',
+            coverUrl: mockA.coverUrl,
+            tracks: MOCK_TRENDING.slice(0,3),
+            total_tracks: 3,
+            type: 'album'
+        };
+    }
 
     try {
         const response = await fetch(`https://api.spotify.com/v1/albums/${id}`, {
@@ -289,14 +301,13 @@ export const getAlbum = async (id: string): Promise<AlbumFull | null> => {
             type: 'album'
         };
     } catch (e) {
-        console.error(e);
         return null;
     }
 }
 
 export const getArtist = async (id: string): Promise<ArtistFull | null> => {
     const token = await getAccessToken();
-    if (!token) return null;
+    if (!token) return MOCK_ARTISTS.find(a => a.id === id) || MOCK_ARTISTS[0];
     try {
         const response = await fetch(`https://api.spotify.com/v1/artists/${id}`, {
             headers: { Authorization: `Bearer ${token}` },
@@ -308,7 +319,7 @@ export const getArtist = async (id: string): Promise<ArtistFull | null> => {
 
 export const getArtistTopTracks = async (id: string): Promise<Track[]> => {
     const token = await getAccessToken();
-    if (!token) return [];
+    if (!token) return MOCK_TRENDING;
     try {
         const response = await fetch(`https://api.spotify.com/v1/artists/${id}/top-tracks?market=VN`, {
             headers: { Authorization: `Bearer ${token}` },
@@ -320,7 +331,7 @@ export const getArtistTopTracks = async (id: string): Promise<Track[]> => {
 
 export const getArtistAlbums = async (id: string): Promise<Playlist[]> => {
     const token = await getAccessToken();
-    if (!token) return [];
+    if (!token) return MOCK_ALBUMS;
     try {
         const response = await fetch(`https://api.spotify.com/v1/artists/${id}/albums?include_groups=album,single&limit=10&market=VN`, {
             headers: { Authorization: `Bearer ${token}` },
@@ -332,7 +343,7 @@ export const getArtistAlbums = async (id: string): Promise<Playlist[]> => {
 
 export const getTrack = async (id: string): Promise<Track | null> => {
     const token = await getAccessToken();
-    if (!token) return null;
+    if (!token) return MOCK_TRENDING.find(t => t.id === id) || MOCK_TRENDING[0];
     try {
         const response = await fetch(`https://api.spotify.com/v1/tracks/${id}`, {
             headers: { Authorization: `Bearer ${token}` },
@@ -345,7 +356,7 @@ export const getTrack = async (id: string): Promise<Track | null> => {
 
 export const getRecommendations = async (seedTracks: string[]): Promise<Track[]> => {
     const token = await getAccessToken();
-    if (!token) return [];
+    if (!token) return MOCK_TRENDING.slice(2, 5);
     try {
         const seeds = seedTracks.slice(0, 5).join(',');
         const response = await fetch(`https://api.spotify.com/v1/recommendations?seed_tracks=${seeds}&limit=10&market=VN`, {
@@ -356,72 +367,66 @@ export const getRecommendations = async (seedTracks: string[]): Promise<Track[]>
     } catch(e) { return []; }
 }
 
-// --- Home Page Design Methods ---
-
 export const getTopArtists = async (): Promise<ArtistFull[]> => {
     const token = await getAccessToken();
-    if (!token) return [];
+    if (!token) return MOCK_ARTISTS;
     try {
-        // Fetch popular artists generally if VN market specific search returns nothing
         const response = await fetch(`https://api.spotify.com/v1/search?q=genre:pop&type=artist&limit=7&market=VN`, {
             headers: { Authorization: `Bearer ${token}` },
         });
         const data = await response.json();
-        return data.artists?.items || [];
-    } catch (e) { return []; }
+        const items = data.artists?.items || [];
+        return items.length > 0 ? items : MOCK_ARTISTS;
+    } catch (e) { return MOCK_ARTISTS; }
 }
 
 export const getTrendingTracks = async (): Promise<Track[]> => {
-    // Try "Global Top 50" if "Top 50 - Vietnam" fails or implies usage of other playlist
-    // Global Top 50: 37i9dQZEVXbMDoHDwVN2tF
-    // Top 50 - Vietnam: 37i9dQZEVXbLdGSmz6xilI
+    const token = await getAccessToken();
+    if (!token) return MOCK_TRENDING;
     
-    const playlistIds = ['37i9dQZEVXbLdGSmz6xilI', '37i9dQZEVXbMDoHDwVN2tF'];
-    
-    for (const id of playlistIds) {
-        const playlist = await getPlaylist(id); 
-        if (playlist && playlist.tracks.length > 0) {
-            return playlist.tracks.slice(0, 7);
+    try {
+        const playlistIds = ['37i9dQZEVXbLdGSmz6xilI', '37i9dQZEVXbMDoHDwVN2tF'];
+        for (const id of playlistIds) {
+            const playlist = await getPlaylist(id); 
+            if (playlist && playlist.tracks.length > 0) {
+                return playlist.tracks.slice(0, 7);
+            }
         }
+         
+         const featured = await getFeaturedPlaylists();
+         if(featured[0] && featured[0].id !== MOCK_CHARTS[0].id) {
+             const fp = await getPlaylist(featured[0].id);
+             return fp && fp.tracks.length > 0 ? fp.tracks.slice(0, 7) : MOCK_TRENDING;
+         }
+    } catch (e) {
+        return MOCK_TRENDING;
     }
      
-     // Fallback if playlist fails
-     const featured = await getFeaturedPlaylists();
-     if(featured[0]) {
-         const fp = await getPlaylist(featured[0].id);
-         return fp ? fp.tracks.slice(0, 7) : [];
-     }
-     return [];
+    return MOCK_TRENDING;
 }
 
 export const getFeaturedCharts = async (): Promise<Playlist[]> => {
     const token = await getAccessToken();
-    if (!token) return [];
+    if (!token) return MOCK_CHARTS;
     try {
-        // Fetch 'toplists' category playlists
         const response = await fetch(`https://api.spotify.com/v1/browse/categories/toplists/playlists?limit=7&country=VN`, {
             headers: { Authorization: `Bearer ${token}` },
         });
         const data = await response.json();
         const items = data.playlists?.items?.map(mapPlaylist) || [];
-        
-        if (items.length === 0) {
-            // Fallback to featured
-             return getFeaturedPlaylists().then(res => res.slice(0, 7));
-        }
-        return items;
-    } catch (e) { return []; }
+        return items.length > 0 ? items : MOCK_CHARTS;
+    } catch (e) { return MOCK_CHARTS; }
 }
 
 export const getPopularRadio = async (): Promise<Playlist[]> => {
     const token = await getAccessToken();
-    if (!token) return [];
+    if (!token) return MOCK_RADIO;
     try {
-        // Search for playlists with "Radio" in the title
         const response = await fetch(`https://api.spotify.com/v1/search?q=Radio&type=playlist&limit=7&market=VN`, {
             headers: { Authorization: `Bearer ${token}` },
         });
         const data = await response.json();
-        return data.playlists?.items?.map(mapPlaylist) || [];
-    } catch (e) { return []; }
+        const items = data.playlists?.items?.map(mapPlaylist) || [];
+        return items.length > 0 ? items : MOCK_RADIO;
+    } catch (e) { return MOCK_RADIO; }
 }

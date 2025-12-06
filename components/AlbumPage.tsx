@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { getAlbum } from '../services/spotifyService';
@@ -5,7 +6,7 @@ import { AlbumFull } from '../types';
 import { usePlayer } from '../context/PlayerContext';
 
 const ClockIcon = () => (
-    <svg role="img" height="16" width="16" aria-hidden="true" viewBox="0 0 16 16" fill="#b3b3b3"><path d="M8 1.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13zM0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8z"></path><path d="M8 3.25a.75.75 0 0 1 .75.75v3.25H11a.75.75 0 0 1 0 1.5H7.25V4A.75.75 0 0 1 8 3.25z"></path></svg>
+    <svg role="img" height="16" width="16" aria-hidden="true" viewBox="0 0 16 16" fill="#b3b3b3"><path d="M8 1.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13zM0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8zM7 6.5C7 8.378 7.63 10 8.5 10c.87 0 1.5-1.622 1.5-3.5S9.37 3 8.5 3c-.87 0-1.5 1.622-1.5 3.5zm8.5 0c0 2.505-2.753 4.67-6.5 4.96C8.63 9.49 8.13 8.04 8.13 6.5c0-1.54.5-2.99.87-4.96 3.747.29 6.5 2.455 6.5 4.96zM7.5 11.46c-3.747-.29-6.5-2.455-6.5-4.96 0-2.505 2.753-4.67 6.5-4.96.37 1.97.87 3.42.87 4.96 0 1.54-.5 2.99-.87 4.96z"></path></svg>
 );
 
 const PlayIconBig = () => (
