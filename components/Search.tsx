@@ -141,14 +141,22 @@ export const Search = () => {
     });
 
     const topResult = filteredResults[0];
+    
+    // If we have a top result and no filters, we show a simplified "Overview" list (Top Result + 4 Songs)
+    // Otherwise, we show the full list.
+    const isOverviewMode = topResult && !yearFilter && !genreFilter && !decadeFilter;
+    
+    const listResults = isOverviewMode 
+        ? filteredResults.filter(t => t.id !== topResult.id).slice(0, 4) 
+        : filteredResults;
 
     return (
-        <div className="p-6 pt-20">
+        <div className="p-6 pt-6">
             <div className="mb-6 relative max-w-[400px] z-50">
                 <input 
                     type="text" 
                     placeholder="What do you want to listen to?" 
-                    className="w-full rounded-full py-3 px-12 bg-spotify-light text-white border border-transparent focus:border-white focus:outline-none placeholder-spotify-grey transition-colors"
+                    className="w-full rounded-full py-3 px-12 bg-[#242424] hover:bg-[#2a2a2a] text-white border border-transparent focus:border-white focus:outline-none placeholder-spotify-grey transition-colors"
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     onFocus={() => setShowSuggestions(true)}
@@ -189,41 +197,37 @@ export const Search = () => {
 
             {!loading && results.length > 0 && (
                 <div className="mb-8 grid grid-cols-1 lg:grid-cols-5 gap-6">
-                    {/* Top Result Section - Only show if not filtered out */}
-                    {topResult && !yearFilter && !genreFilter && !decadeFilter && (
+                    {/* Top Result Section - Only show if overview mode */}
+                    {isOverviewMode && (
                          <div className="lg:col-span-2">
                             <h2 className="text-2xl font-bold mb-4">Top result</h2>
                             <div 
-                                className="bg-spotify-card hover:bg-spotify-light p-5 rounded-lg transition-colors group relative cursor-pointer"
+                                className="bg-[#181818] hover:bg-[#282828] p-5 rounded-lg transition-colors group relative cursor-pointer h-64 flex flex-col justify-center gap-4"
                                 onClick={(e) => { e.stopPropagation(); navigate(`/artist/${topResult.artistId}`); }}
                             >
-                                <img src={topResult.coverUrl} alt={topResult.title} className="w-24 h-24 rounded shadow-lg mb-4 object-cover" />
-                                <div className="text-3xl font-bold text-white mb-1 line-clamp-2 pb-1">{topResult.title}</div>
-                                <div className="text-sm font-semibold text-spotify-grey mb-4 flex items-center gap-2">
-                                    <span className="text-white">Song</span>
-                                    <span className="w-1 h-1 bg-spotify-grey rounded-full"></span>
-                                    <Link 
-                                        to={`/artist/${topResult.artistId}`}
-                                        onClick={(e) => e.stopPropagation()}
-                                        className="line-clamp-1 hover:text-white hover:underline"
-                                    >
-                                        {topResult.artist}
-                                    </Link>
-                                    {topResult.releaseYear && (
-                                        <>
-                                            <span className="w-1 h-1 bg-spotify-grey rounded-full"></span>
-                                            <span className="text-spotify-grey">{topResult.releaseYear}</span>
-                                        </>
-                                    )}
+                                <img src={topResult.coverUrl} alt={topResult.title} className="w-[92px] h-[92px] rounded shadow-lg object-cover" />
+                                
+                                <div>
+                                    <div className="text-3xl font-bold text-white mb-1 line-clamp-2 pb-1 tracking-tight">{topResult.title}</div>
+                                    <div className="text-sm font-semibold text-spotify-grey flex items-center gap-2">
+                                        <span className="text-white bg-[#121212] rounded-full px-3 py-1 text-xs uppercase tracking-wider">Song</span>
+                                        <Link 
+                                            to={`/artist/${topResult.artistId}`}
+                                            onClick={(e) => e.stopPropagation()}
+                                            className="line-clamp-1 hover:text-white hover:underline font-bold text-white"
+                                        >
+                                            {topResult.artist}
+                                        </Link>
+                                    </div>
                                 </div>
                                 
                                 {/* Large Play Button */}
-                                <div onClick={(e) => handlePlay(e, topResult)} className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-300 shadow-xl">
-                                    <div className="w-12 h-12 bg-spotify-green rounded-full flex items-center justify-center text-black hover:scale-105 transition-transform">
+                                <div onClick={(e) => handlePlay(e, topResult)} className="absolute bottom-5 right-5 opacity-0 group-hover:opacity-100 translate-y-2 group-hover:translate-y-0 transition-all duration-300 shadow-xl z-10">
+                                    <div className="w-12 h-12 bg-spotify-green rounded-full flex items-center justify-center text-black hover:scale-105 transition-transform hover:bg-[#1fdf64]">
                                         {currentTrack?.id === topResult.id && isPlaying ? (
-                                        <svg height="24" width="24" viewBox="0 0 24 24" fill="currentColor"><path d="M5.7 3a.7.7 0 0 0-.7.7v16.6a.7.7 0 0 0 .7.7h2.6a.7.7 0 0 0 .7-.7V3.7a.7.7 0 0 0-.7-.7H5.7zm10 0a.7.7 0 0 0-.7.7v16.6a.7.7 0 0 0 .7.7h2.6a.7.7 0 0 0 .7-.7V3.7a.7.7 0 0 0-.7-.7h-2.6z"></path></svg>
+                                        <svg height="20" width="20" viewBox="0 0 24 24" fill="currentColor"><path d="M5.7 3a.7.7 0 0 0-.7.7v16.6a.7.7 0 0 0 .7.7h2.6a.7.7 0 0 0 .7-.7V3.7a.7.7 0 0 0-.7-.7H5.7zm10 0a.7.7 0 0 0-.7.7v16.6a.7.7 0 0 0 .7.7h2.6a.7.7 0 0 0 .7-.7V3.7a.7.7 0 0 0-.7-.7h-2.6z"></path></svg>
                                         ) : (
-                                        <svg height="24" width="24" viewBox="0 0 24 24" fill="currentColor"><path d="m7.05 3.606 13.49 7.788a.7.7 0 0 1 0 1.212L7.05 20.394A.7.7 0 0 1 6 19.788V4.212a.7.7 0 0 1 1.05-.606z"></path></svg>
+                                        <svg height="20" width="20" viewBox="0 0 24 24" fill="currentColor"><path d="m7.05 3.606 13.49 7.788a.7.7 0 0 1 0 1.212L7.05 20.394A.7.7 0 0 1 6 19.788V4.212a.7.7 0 0 1 1.05-.606z"></path></svg>
                                         )}
                                     </div>
                                 </div>
@@ -232,7 +236,7 @@ export const Search = () => {
                     )}
 
                     {/* Songs List Section */}
-                     <div className={!topResult || yearFilter || genreFilter || decadeFilter ? "lg:col-span-5" : "lg:col-span-3"}>
+                     <div className={!isOverviewMode ? "lg:col-span-5" : "lg:col-span-3"}>
                          <div className="flex items-center justify-between mb-4">
                              <h2 className="text-2xl font-bold">Songs</h2>
                              <button 
@@ -296,13 +300,13 @@ export const Search = () => {
                          )}
 
                          <div className="flex flex-col">
-                             {filteredResults.length === 0 && (yearFilter || genreFilter || decadeFilter) ? (
+                             {listResults.length === 0 ? (
                                  <div className="text-spotify-grey py-4">No songs found matching filters.</div>
                              ) : (
-                                filteredResults.map((track) => (
+                                listResults.map((track) => (
                                     <div 
                                         key={track.id} 
-                                        className="flex items-center justify-between p-2 rounded hover:bg-spotify-highlight group transition-colors cursor-pointer h-14"
+                                        className="flex items-center justify-between p-2 rounded hover:bg-[#2a2a2a] group transition-colors cursor-pointer h-14"
                                         onClick={(e) => { e.stopPropagation(); navigate(`/track/${track.id}`); }}
                                     >
                                         <div className="flex items-center gap-4 flex-1 overflow-hidden">
